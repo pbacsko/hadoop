@@ -1,0 +1,28 @@
+{
+    "$schema": "http://json-schema.org/draft/2019-09/schema#",
+
+    "type" : "object",
+    "properties" : {
+        "rules" : {
+             "type" : "array",
+             "items": {
+                 "type": "object",
+                 "properties": {
+                     "type": { "type": "string" },
+                     "matches": { "type": "string" },
+                     "policy": { "type": "string" },
+                     "nestedUserRule": { "type": "object" },
+                         "items": {
+                             "parent": { "type" : "string" },
+                             "outerRule": { "type": "string" },
+                             "innerCreate": { "type": "boolean" }
+                         }
+                     },
+                     "fallthrough": { "type": "boolean" },
+                     "defaultQueue": { "type": "string" },
+                     "create": { "type": "boolean" }
+                 }
+            }
+        }
+    }
+}
