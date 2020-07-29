@@ -21,7 +21,7 @@ public class GeneratePojos {
     
     JCodeModel codeModel = new JCodeModel();
     URL schemaURL = Paths.get(
-        "src/main/resources/MappingRulesDescription.json").toUri().toURL();
+        "src/main/resources/schema/MappingRulesDescription.json").toUri().toURL();
 
     GenerationConfig config = new DefaultGenerationConfig() {
       @Override
