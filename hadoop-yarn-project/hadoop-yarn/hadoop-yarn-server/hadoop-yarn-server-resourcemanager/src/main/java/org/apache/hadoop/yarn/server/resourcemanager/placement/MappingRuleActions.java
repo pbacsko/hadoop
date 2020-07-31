@@ -41,4 +41,12 @@ public class MappingRuleActions {
   public static MappingRuleAction createUpdateDefaultAction(String queue) {
     return new VariableUpdateAction("%default", queue);
   }
+
+  public static MappingRuleAction createPlaceToQueueAction(String queue) {
+    return new PlaceToQueueAction(queue);
+  }
+
+  public static MappingRuleAction createRejectAction() {
+    return new RejectAction();
+  }
 }

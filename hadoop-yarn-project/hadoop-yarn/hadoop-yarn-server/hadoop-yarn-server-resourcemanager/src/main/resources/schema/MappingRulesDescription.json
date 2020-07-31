@@ -10,7 +10,9 @@
                  "properties": {
                      "type": { "type": "string" },
                      "matches": { "type": "string" },
-                     "policy": { "type": "string" },
+                     "policy": { "type": "string",
+                         "enum": ["rulePlacement", "specifiedPlacement", "reject", "defaultQueue" ] },
+                     "queue": { "type": "string" },
                      "nestedUserRule": { "type": "object",
                          "properties" : {
                              "parent": { "type" : "string" },
@@ -18,10 +20,11 @@
                              "innerCreate": { "type": "boolean" }
                          }
                       },
-                     "fallthrough": { "type": "boolean" },
+                     "fallbackResult": { "type": "string",
+                         "enum": ["skip", "reject", "placeDefault"] },
                      "defaultQueue": { "type": "string" },
                      "create": { "type": "boolean" }
-                 }
+                }
             }
         }
     }

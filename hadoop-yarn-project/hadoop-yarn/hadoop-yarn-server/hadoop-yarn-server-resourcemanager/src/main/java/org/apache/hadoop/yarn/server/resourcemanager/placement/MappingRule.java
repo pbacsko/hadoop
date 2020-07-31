@@ -4,7 +4,7 @@ public class MappingRule {
   private MappingRuleMatcher matcher;
   private MappingRuleAction action;
 
-  MappingRule(MappingRuleMatcher matcher, MappingRuleAction action) {
+  public MappingRule(MappingRuleMatcher matcher, MappingRuleAction action) {
     this.matcher = matcher;
     this.action = action;
   }
