@@ -25,17 +25,17 @@ public class TestMappingRule extends TestCase {
 
   void assertRejectResult(MappingRuleResult result) {
     assertTrue(
-        MappingRuleResult.MappingRuleResultType.REJECT == result.getResult());
+        MappingRuleResultType.REJECT == result.getResult());
   }
 
   void assertSkipResult(MappingRuleResult result) {
     assertTrue(
-        MappingRuleResult.MappingRuleResultType.SKIP == result.getResult());
+        MappingRuleResultType.SKIP == result.getResult());
   }
 
   void assertPlaceResult(MappingRuleResult result, String queue) {
     assertTrue(
-        MappingRuleResult.MappingRuleResultType.PLACE == result.getResult());
+        MappingRuleResultType.PLACE == result.getResult());
     assertEquals(queue, result.getQueue());
   }
 
@@ -112,5 +112,15 @@ public class TestMappingRule extends TestCase {
         "u:%user:root.%primary_group", matching, "root.developer");
     evaluateLegacyStringTestcase(
         "u:%user:root.%primary_group", mismatching, "root.tester");
+  }
+
+  @Test
+  public void testToStrings() {
+    MappingRuleAction action = new MappingRuleActions.PlaceToQueueAction("queue");
+    MappingRuleMatcher matcher = MappingRuleMatchers.createUserMatcher("bob");
+    MappingRule rule = new MappingRule(matcher, action);
+
+    assertEquals("MappingRule{matcher=" + matcher.toString() +
+        ", action=" + action.toString() + "}", rule.toString());
   }
 }

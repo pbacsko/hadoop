@@ -147,4 +147,78 @@ public class TestMappingRuleMatchers extends TestCase {
     assertFalse(nullVarMatcher.match(allFull));
   }
 
+  @Test
+  public void testBoolOperatorMatchers() {
+    VariableContext developerBob = new VariableContext();
+    developerBob.put("%user", "bob");
+    developerBob.put("%primary_group", "developers");
+
+
+    VariableContext testerBob = new VariableContext();
+    testerBob.put("%user", "bob");
+    testerBob.put("%primary_group", "testers");
+
+    VariableContext testerDave = new VariableContext();
+    testerDave.put("%user", "dave");
+    testerDave.put("%primary_group", "testers");
+
+
+    VariableContext accountantDave = new VariableContext();
+    accountantDave.put("%user", "dave");
+    accountantDave.put("%primary_group", "accountants");
+
+    MappingRuleMatcher userBob =
+        new MappingRuleMatchers.VariableMatcher("%user", "bob");
+
+    MappingRuleMatcher groupDevelopers =
+        new MappingRuleMatchers.VariableMatcher(
+           "%primary_group", "developers");
+
+    MappingRuleMatcher groupAccountants =
+        new MappingRuleMatchers.VariableMatcher(
+            "%primary_group", "accountants");
+
+    MappingRuleMatcher developerBobMatcher = new MappingRuleMatchers.AndMatcher(
+            userBob, groupDevelopers);
+
+    MappingRuleMatcher testerDaveMatcher =
+        MappingRuleMatchers.createUserGroupMatcher("dave", "testers");
+
+    MappingRuleMatcher accountantOrBobMatcher =
+        new MappingRuleMatchers.OrMatcher(groupAccountants, userBob);
+
+    assertTrue(developerBobMatcher.match(developerBob));
+    assertFalse(developerBobMatcher.match(testerBob));
+    assertFalse(developerBobMatcher.match(testerDave));
+    assertFalse(developerBobMatcher.match(accountantDave));
+
+    System.out.println(testerDaveMatcher);
+    assertFalse(testerDaveMatcher.match(developerBob));
+    assertFalse(testerDaveMatcher.match(testerBob));
+    assertTrue(testerDaveMatcher.match(testerDave));
+    assertFalse(testerDaveMatcher.match(accountantDave));
+
+    assertTrue(accountantOrBobMatcher.match(developerBob));
+    assertTrue(accountantOrBobMatcher.match(testerBob));
+    assertFalse(accountantOrBobMatcher.match(testerDave));
+    assertTrue(accountantOrBobMatcher.match(accountantDave));
+  }
+
+  @Test
+  public void testToStrings() {
+    MappingRuleMatcher var = new MappingRuleMatchers.VariableMatcher("%a", "b");
+    MappingRuleMatcher all = new MappingRuleMatchers.MatchAllMatcher();
+    MappingRuleMatcher and = new MappingRuleMatchers.AndMatcher(var, all, var);
+    MappingRuleMatcher or = new MappingRuleMatchers.OrMatcher(var,all, var);
+
+    assertEquals("VariableMatcher{variable='%a', value='b'}", var.toString());
+    assertEquals("MatchAllMatcher", all.toString());
+    assertEquals("AndMatcher{matchers=[" + var.toString() +
+        ", " + all.toString() +
+        ", " + var.toString() + "]}", and.toString());
+    assertEquals("OrMatcher{matchers=[" + var.toString() +
+        ", " + all.toString() +
+        ", " + var.toString() + "]}", or.toString());
+  }
+
 }

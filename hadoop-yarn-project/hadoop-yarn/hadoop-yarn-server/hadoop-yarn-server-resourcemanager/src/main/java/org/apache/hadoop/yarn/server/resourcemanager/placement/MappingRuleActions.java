@@ -13,12 +13,24 @@ public class MappingRuleActions {
       String substituted = variables.replacePathVariables(queueName);
       return MappingRuleResult.createPlacementResult(substituted);
     }
+
+    @Override
+    public String toString() {
+      return "PlaceToQueueAction{" +
+        "queueName='" + queueName + '\'' +
+        '}';
+    }
   }
 
   public static class RejectAction extends MappingRuleActionBase {
     @Override
     public MappingRuleResult execute(VariableContext variables) {
       return MappingRuleResult.createRejectResult();
+    }
+
+    @Override
+    public String toString() {
+      return "RejectAction";
     }
   }
 
@@ -35,6 +47,14 @@ public class MappingRuleActions {
     public MappingRuleResult execute(VariableContext variables) {
       variables.put(variableName, variables.replaceVariables(variableValue));
       return MappingRuleResult.createSkipResult();
+    }
+
+    @Override
+    public String toString() {
+      return "VariableUpdateAction{" +
+        "variableName='" + variableName + '\'' +
+        ", variableValue='" + variableValue + '\'' +
+        '}';
     }
   }
 

@@ -1,8 +1,8 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
 public class MappingRule {
-  private MappingRuleMatcher matcher;
-  private MappingRuleAction action;
+  private MappingRuleMatcher matcher = null;
+  private MappingRuleAction action = null;
 
   public MappingRule(MappingRuleMatcher matcher, MappingRuleAction action) {
     this.matcher = matcher;
@@ -51,5 +51,13 @@ public class MappingRule {
     }
 
     return new MappingRule(matcher, action);
+  }
+
+  @Override
+  public String toString() {
+    return "MappingRule{" +
+      "matcher=" + matcher +
+      ", action=" + action +
+      '}';
   }
 }

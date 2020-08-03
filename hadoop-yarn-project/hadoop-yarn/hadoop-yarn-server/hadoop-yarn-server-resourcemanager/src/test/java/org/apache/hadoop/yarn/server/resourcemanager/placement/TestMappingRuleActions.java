@@ -7,17 +7,23 @@ import org.junit.Test;
 public class TestMappingRuleActions extends TestCase {
   void assertRejectResult(MappingRuleResult result) {
     assertTrue(
-        MappingRuleResult.MappingRuleResultType.REJECT == result.getResult());
+        MappingRuleResultType.REJECT == result.getResult());
   }
 
+
   void assertSkipResult(MappingRuleResult result) {
+  assertTrue(
+        MappingRuleResultType.SKIP == result.getResult());
+  }
+
+  void assertPlaceDefaultResult(MappingRuleResult result) {
     assertTrue(
-        MappingRuleResult.MappingRuleResultType.SKIP == result.getResult());
+        MappingRuleResultType.PLACE_TO_DEFAULT == result.getResult());
   }
 
   void assertPlaceResult(MappingRuleResult result, String queue) {
     assertTrue(
-        MappingRuleResult.MappingRuleResultType.PLACE == result.getResult());
+        MappingRuleResultType.PLACE == result.getResult());
     assertEquals(queue, result.getQueue());
   }
 
@@ -35,7 +41,7 @@ public class TestMappingRuleActions extends TestCase {
         new MappingRuleActions.PlaceToQueueAction("a");
 
     action.setFallbackDefaultPlacement();
-    assertPlaceResult(action.getFallback(), "%default");
+    assertPlaceDefaultResult(action.getFallback());
 
     action.setFallbackReject();
     assertRejectResult(action.getFallback());
@@ -140,4 +146,16 @@ public class TestMappingRuleActions extends TestCase {
     assertPlaceResult(placeToDefaultRef.execute(variables), "root.default");
   }
 
+  @Test
+  public void testToStrings() {
+    MappingRuleAction place = new MappingRuleActions.PlaceToQueueAction("queue");
+    MappingRuleAction varUpdate = new MappingRuleActions.VariableUpdateAction(
+        "%var", "value");
+    MappingRuleAction reject = new MappingRuleActions.RejectAction();
+
+    assertEquals("PlaceToQueueAction{queueName='queue'}", place.toString());
+    assertEquals("VariableUpdateAction{variableName='%var'" +
+            ", variableValue='value'}", varUpdate.toString());
+    assertEquals("RejectAction", reject.toString());
+  }
 }

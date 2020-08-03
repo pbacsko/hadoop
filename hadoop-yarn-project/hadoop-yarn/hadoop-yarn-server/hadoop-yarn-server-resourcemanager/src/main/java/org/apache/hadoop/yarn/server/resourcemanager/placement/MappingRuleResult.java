@@ -4,19 +4,15 @@ package org.apache.hadoop.yarn.server.resourcemanager.placement;
  * This class represents the outcome of an action
  */
 public class MappingRuleResult {
-  enum MappingRuleResultType {
-    //Represents a result where we simply ignore the current rule
-    // and move onto the next one
-    SKIP,
-    //Represents a result where the application gets rejected
-    REJECT,
-    //Represents a result where the application gets placed into a queue
-    PLACE
-  }
 
   //The name of the queue we should place our application into
   //Only valid if result == PLACE
   private String queue;
+
+  //The normalized name of the queue, since CS allows users to referencce queues
+  //by only their leaf name, we need to normalize those queues to have full
+  //reference
+  private String normalizedQueue;
 
   //The result of the action
   private MappingRuleResultType result;
@@ -37,7 +33,7 @@ public class MappingRuleResult {
   // create a new instance all the time
   // this is THE instance which will be used to represent default placement
   private static final MappingRuleResult RESULT_DEFAULT_PLACEMENT
-      = new MappingRuleResult("%default", MappingRuleResultType.PLACE);
+      = new MappingRuleResult(null, MappingRuleResultType.PLACE_TO_DEFAULT);
 
   /**
    * Constructor is private to force the user to use the predefined generator
@@ -49,11 +45,20 @@ public class MappingRuleResult {
    */
   private MappingRuleResult(String queue, MappingRuleResultType result) {
     this.queue = queue;
+    this.normalizedQueue = queue;
     this.result = result;
   }
 
   public String getQueue() {
     return queue;
+  }
+
+  public void updateNormalizedQueue(String normalizedQueue) {
+    this.normalizedQueue = normalizedQueue;
+  }
+
+  public String getNormalizedQueue() {
+    return normalizedQueue;
   }
 
   public MappingRuleResultType getResult() {
@@ -92,5 +97,14 @@ public class MappingRuleResult {
    */
   public static MappingRuleResult createDefaultPlacementResult() {
     return RESULT_DEFAULT_PLACEMENT;
+  }
+
+  @Override
+  public String toString() {
+    if (result == MappingRuleResultType.PLACE) {
+      return result.name() + ": '" + normalizedQueue + "' ('" + queue + "')";
+    } else {
+      return result.name();
+    }
   }
 }
