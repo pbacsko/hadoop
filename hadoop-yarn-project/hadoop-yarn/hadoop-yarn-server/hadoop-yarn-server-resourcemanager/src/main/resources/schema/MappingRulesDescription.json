@@ -25,7 +25,8 @@
                      "nestedUserRule": { "type": "object",
                          "properties" : {
                              "parent": { "type" : "string" },
-                             "outerRule": { "type": "string" },
+                             "outerRule": { "type": "string",
+                                 "enum": [ "primaryGroup", "secondaryGroup", "queue" ] },
                              "innerCreate": { "type": "boolean" }
                          }
                       },

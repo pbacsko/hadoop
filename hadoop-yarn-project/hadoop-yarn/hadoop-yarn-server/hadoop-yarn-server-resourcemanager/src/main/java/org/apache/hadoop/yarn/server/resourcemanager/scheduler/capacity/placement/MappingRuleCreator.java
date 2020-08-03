@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -30,15 +32,18 @@ import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleAction
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleActions;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleMatcher;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleMatchers;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.NestedUserRule.OuterRule;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.Rule.FallbackResult;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.Rule.Policy;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.Rule.Type;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 
 public class MappingRuleCreator {
   private static final String FULL_DEFAULT_QUEUE_PATH = "root.default";
   private static final String DEFAULT_QUEUE = "default";
+  private static final String ALL_USER = "*";
 
   public MappingRulesDescription getMappingRulesFromJson(String jsonPath)
       throws IOException {
@@ -72,12 +77,16 @@ public class MappingRuleCreator {
       String ruleDefaultQueue = rule.getDefaultQueue();
 
       MappingRuleMatcher matcher;
-
       switch (type) {
       case USER:
-        matcher = MappingRuleMatchers.createUserMatcher(matches);
+        if (ALL_USER.equals(matches)) {
+          matcher = MappingRuleMatchers.createUserMatcher(matches);
+        } else {
+          matcher = MappingRuleMatchers.createAllMatcher();
+        }
         break;
       case GROUP:
+        checkArgument(!ALL_USER.equals(matches), "Cannot match '*' for groups");
         matcher = MappingRuleMatchers.createGroupMatcher(matches);
         break;
       case APPLICATION:
@@ -87,9 +96,7 @@ public class MappingRuleCreator {
         throw new IllegalArgumentException("Unknown type: " + type);
       }
 
-      // action based on the policy
       MappingRuleAction action = null;
-
       switch (policy) {
       case DEFAULT_QUEUE:
         String defaultQueue = getDefaultQueue(ruleDefaultQueue);
@@ -107,7 +114,8 @@ public class MappingRuleCreator {
       case CUSTOM:
         throw new UnsupportedOperationException("custom policy");
       case NESTED_USER:
-        throw new UnsupportedOperationException("nested policy");
+        action = getActionForNested(rule.getNestedUserRule());
+        break;
       case SECONDARY_GROUP:
         action = MappingRuleActions.createPlaceToQueueAction(
             getTargetQueue(queue, "%secondary_group"));
@@ -117,11 +125,10 @@ public class MappingRuleCreator {
             getTargetQueue(queue, "%user"));
         break;
       default:
-        throw new UnsupportedOperationException(
+        throw new IllegalArgumentException(
             "Unsupported policy: " + policy);
       }
 
-      // fallback - what happens if the action fails?
       switch (fallbackResult) {
       case PLACE_DEFAULT:
         ((MappingRuleActionBase)action).setFallbackDefaultPlacement();
@@ -141,6 +148,36 @@ public class MappingRuleCreator {
     }
 
     return mappingRules;
+  }
+
+  public MappingRuleAction getActionForNested(NestedUserRule nestedRule) {
+    Preconditions.checkArgument(nestedRule != null,
+        "nested rule is undefined");
+    OuterRule outerRule = nestedRule.getOuterRule();
+    String parent = nestedRule.getParent();
+    String targetQueue = "";
+
+    if (parent != null) {
+      targetQueue += parent;
+    }
+
+    switch (outerRule) {
+    case PRIMARY_GROUP:
+      targetQueue += ".%primary_group";
+      break;
+    case SECONDARY_GROUP:
+      targetQueue += ".%secondary_group";
+      break;
+    case QUEUE:
+      checkArgument(parent != null, "parent queue is null in nested rule");
+      break;
+    default:
+      throw new IllegalArgumentException("Unknown outer rule: " + outerRule);
+    }
+
+    targetQueue += ".%user";
+
+    return MappingRuleActions.createPlaceToQueueAction(targetQueue);
   }
 
   public String getDefaultQueue(String ruleDefaultQueue) {

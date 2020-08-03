@@ -113,4 +113,8 @@ public class MappingRuleMatchers {
   public static MappingRuleMatcher createApplicationNameMatcher(String name) {
     return new VariableMatcher("%application", name);
   }
+
+  public static MappingRuleMatcher createAllMatcher() {
+    return new MatchAllMatcher();
+  }
 }
