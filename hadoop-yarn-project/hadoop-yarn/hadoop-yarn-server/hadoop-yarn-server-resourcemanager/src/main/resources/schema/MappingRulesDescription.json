@@ -8,10 +8,19 @@
              "items": {
                  "type": "object",
                  "properties": {
-                     "type": { "type": "string" },
+                     "type": { "type": "string",
+                          "enum": ["user", "group", "application"] },
                      "matches": { "type": "string" },
                      "policy": { "type": "string",
-                         "enum": ["rulePlacement", "specifiedPlacement", "reject", "defaultQueue" ] },
+                         "enum": [
+                              "specifiedPlacement",
+                              "reject",
+                              "defaultQueue",
+                              "user",
+                              "primaryGroup",
+                              "secondaryGroup",
+                              "nestedUser",
+                              "custom" ] },
                      "queue": { "type": "string" },
                      "nestedUserRule": { "type": "object",
                          "properties" : {
