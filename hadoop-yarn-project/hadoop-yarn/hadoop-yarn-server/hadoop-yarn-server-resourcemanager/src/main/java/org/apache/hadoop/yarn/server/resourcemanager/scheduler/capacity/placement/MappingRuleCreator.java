@@ -32,10 +32,13 @@ import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleAction
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleActions;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleMatcher;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleMatchers;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.NestedUserRule.OuterRule;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.Rule.FallbackResult;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.Rule.Policy;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.Rule.Type;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.MappingRulesDescription;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.NestedUserRule;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.NestedUserRule.OuterRule;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.Rule;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.Rule.FallbackResult;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.Rule.Policy;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.Rule.Type;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;

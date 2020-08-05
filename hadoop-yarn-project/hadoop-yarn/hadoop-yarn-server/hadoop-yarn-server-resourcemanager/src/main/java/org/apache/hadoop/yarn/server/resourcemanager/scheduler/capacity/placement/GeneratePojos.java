@@ -62,7 +62,7 @@ public class GeneratePojos {
 
     mapper.generate(codeModel,
         "ignore",
-        "org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement",
+        "org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema",
         schemaURL);
 
     codeModel.build(new File("src/main/java"));

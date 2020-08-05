@@ -392,7 +392,8 @@
         <version>1.0.2</version>
         <configuration>
           <sourceDirectory>${basedir}/src/main/resources/schema</sourceDirectory>
-          <targetPackage>org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement</targetPackage>
+          <targetPackage>org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema</targetPackage>
+          <outputDirectory>${basedir}/src/main/java</outputDirectory>
         </configuration>
         <executions>
           <execution>
