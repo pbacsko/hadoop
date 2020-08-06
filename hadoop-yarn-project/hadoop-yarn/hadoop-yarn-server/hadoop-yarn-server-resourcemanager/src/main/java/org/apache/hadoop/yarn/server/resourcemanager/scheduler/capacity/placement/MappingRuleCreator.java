@@ -26,9 +26,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRule;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleAction;
-import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleActionBase;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleActions;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleMatcher;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleMatchers;
@@ -66,8 +66,6 @@ public class MappingRuleCreator {
     return getMappingRules(desc);
   }
 
-  // TODO: main logic
-  // needs some fine-tuning after things are finalized
   List<MappingRule> getMappingRules(MappingRulesDescription rules) {
     List<MappingRule> mappingRules = new ArrayList<>();
 
@@ -79,13 +77,19 @@ public class MappingRuleCreator {
       FallbackResult fallbackResult = rule.getFallbackResult();
       String ruleDefaultQueue = rule.getDefaultQueue();
 
+      // TODO: these could be enforced in the JSON as well
+      checkArgument(type != null, "Rule type is undefined");
+      checkArgument(policy != null, "Rule policy is undefined");
+      checkArgument(matches != null, "Match string is undefined");
+      checkArgument(StringUtils.isEmpty(matches), "Match string is empty");
+
       MappingRuleMatcher matcher;
       switch (type) {
       case USER:
         if (ALL_USER.equals(matches)) {
-          matcher = MappingRuleMatchers.createUserMatcher(matches);
-        } else {
           matcher = MappingRuleMatchers.createAllMatcher();
+        } else {
+          matcher = MappingRuleMatchers.createUserMatcher(matches);
         }
         break;
       case GROUP:
@@ -132,18 +136,23 @@ public class MappingRuleCreator {
             "Unsupported policy: " + policy);
       }
 
-      switch (fallbackResult) {
-      case PLACE_DEFAULT:
-        ((MappingRuleActionBase)action).setFallbackDefaultPlacement();
-        break;
-      case REJECT:
-        ((MappingRuleActionBase)action).setFallbackReject();
-        break;
-      case SKIP:
-        ((MappingRuleActionBase)action).setFallbackSkip();
-      default:
-        throw new IllegalArgumentException(
-            "Unsupported fallback rule " + fallbackResult);
+      // TODO: make this mandatory?
+      if (fallbackResult == null) {
+        action.setFallbackDefaultPlacement();
+      } else {
+        switch (fallbackResult) {
+        case PLACE_DEFAULT:
+          action.setFallbackDefaultPlacement();
+          break;
+        case REJECT:
+          action.setFallbackReject();
+          break;
+        case SKIP:
+          action.setFallbackSkip();
+        default:
+          throw new IllegalArgumentException(
+              "Unsupported fallback rule " + fallbackResult);
+        }
       }
 
       MappingRule mappingRule = new MappingRule(matcher, action);
