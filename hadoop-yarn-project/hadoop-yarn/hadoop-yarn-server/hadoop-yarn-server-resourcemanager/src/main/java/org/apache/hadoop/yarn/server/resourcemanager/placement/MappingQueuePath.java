@@ -27,28 +27,33 @@ public class MappingQueuePath {
     }
   }
 
-  String getParent() {
+  public String getParent() {
     return parent;
   }
 
-  String getLeafName() {
+  public String getLeafName() {
     return leaf;
   }
 
-  String getFullPath() {
+  public String getFullPath() {
     return hasParent() ? (parent + DOT + leaf) : leaf;
   }
 
-  void normalize(String normalizedPath) {
+  public void normalize(String normalizedPath) {
     normalized = true;
     setFromFullPath(normalizedPath);
   }
 
-  boolean hasParent() {
-    return null == parent;
+  public boolean hasParent() {
+    return null != parent;
   }
 
-  boolean isNormalized() {
+  public boolean isNormalized() {
     return normalized;
+  }
+
+  @Override
+  public String toString() {
+    return getFullPath();
   }
 }
