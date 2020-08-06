@@ -61,10 +61,25 @@ public class CSMappingPlacementRule extends PlacementRule {
       "%specified"
     );
 
+    MappingRuleValidationContext validationContext =
+        new MappingRuleValidationContextImpl(queueManager);
+
+    //Adding all immutable variables to the known variable list
+    immutableVariables.forEach(var -> validationContext.addVariable(var));
+    //Immutables + %default are the only officially supported variables,
+    //We initialize the context with these, and let the rules to extend the list
+    validationContext.addVariable("%default");
+
     //Getting and validating mapping rules
     mappingRules = conf.getMappingRules();
     for (MappingRule rule : mappingRules) {
-      validateMappingrule(rule);
+      try {
+        rule.validate(validationContext);
+      } catch (YarnException e) {
+        LOG.error("Error initializing queue mappings, rule '" + rule + "' " +
+            "has encountered a validation error: " + e.getMessage());
+        throw new IOException(e);
+      }
     }
 
     LOG.info("Initialized queue mappings, can override user specified " +
@@ -77,10 +92,6 @@ public class CSMappingPlacementRule extends PlacementRule {
 
     return mappingRules.size() > 0;
   }
-
-  private void validateMappingrule(MappingRule rule) throws IOException {
-  }
-
 
   private String getPrimaryGroup(String user) throws IOException {
     return groups.getGroupsSet(user).iterator().next();

@@ -1,5 +1,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
+import org.apache.hadoop.yarn.exceptions.YarnException;
+
 public interface MappingRuleAction {
   /**
    * Returns the fallback action to be taken if the main action (result returned
@@ -36,4 +38,13 @@ public interface MappingRuleAction {
    * does not exist the application will get rejected
    */
   MappingRuleActionBase setFallbackDefaultPlacement();
+
+  /**
+   * This method is responsible for config validation, the context contains all
+   * information required for validation, method should throw an exception on
+   * detectable setup errors.
+   * @param ctx
+   * @throws YarnException
+   */
+  void validate(MappingRuleValidationContext ctx) throws YarnException;
 }

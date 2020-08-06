@@ -1,5 +1,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
+import org.apache.hadoop.yarn.exceptions.YarnException;
+
 public class MappingRuleActions {
   public static class PlaceToQueueAction extends MappingRuleActionBase {
     private String queueName;
@@ -15,6 +17,12 @@ public class MappingRuleActions {
     }
 
     @Override
+    public void validate(MappingRuleValidationContext ctx)
+        throws YarnException {
+      ctx.validateQueuePath(this.queueName);
+    }
+
+    @Override
     public String toString() {
       return "PlaceToQueueAction{" +
         "queueName='" + queueName + '\'' +
@@ -27,6 +35,10 @@ public class MappingRuleActions {
     public MappingRuleResult execute(VariableContext variables) {
       return MappingRuleResult.createRejectResult();
     }
+
+    @Override
+    public void validate(MappingRuleValidationContext ctx) throws
+        YarnException {}
 
     @Override
     public String toString() {
@@ -47,6 +59,12 @@ public class MappingRuleActions {
     public MappingRuleResult execute(VariableContext variables) {
       variables.put(variableName, variables.replaceVariables(variableValue));
       return MappingRuleResult.createSkipResult();
+    }
+
+    @Override
+    public void validate(MappingRuleValidationContext ctx)
+        throws YarnException {
+      ctx.addVariable(this.variableName);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
+import org.apache.hadoop.yarn.exceptions.YarnException;
+
 public class MappingRule {
   private MappingRuleMatcher matcher = null;
   private MappingRuleAction action = null;
@@ -51,6 +53,11 @@ public class MappingRule {
     }
 
     return new MappingRule(matcher, action);
+  }
+
+  public void validate(MappingRuleValidationContext ctx)
+      throws YarnException {
+    this.action.validate(ctx);
   }
 
   @Override
