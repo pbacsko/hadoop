@@ -41,6 +41,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placemen
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement.schema.Rule.Type;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 public class MappingRuleCreator {
@@ -60,28 +61,23 @@ public class MappingRuleCreator {
     return objectMapper.readValue(contents, MappingRulesDescription.class);
   }
 
-  public List<MappingRule> getMappingRules(String appSubmissionQueue,
-      String jsonPath) throws IOException {
+  public List<MappingRule> getMappingRules(String jsonPath) throws IOException {
     MappingRulesDescription desc = getMappingRulesFromJson(jsonPath);
     return getMappingRules(desc);
   }
 
+  @VisibleForTesting
   List<MappingRule> getMappingRules(MappingRulesDescription rules) {
     List<MappingRule> mappingRules = new ArrayList<>();
 
     for (Rule rule : rules.getRules()) {
+      checkMandatoryParameters(rule);
+
       String matches = rule.getMatches();
       Type type = rule.getType();
       Policy policy = rule.getPolicy();
       String queue = rule.getQueue();
       FallbackResult fallbackResult = rule.getFallbackResult();
-      String ruleDefaultQueue = rule.getDefaultQueue();
-
-      // TODO: these could be enforced in the JSON as well
-      checkArgument(type != null, "Rule type is undefined");
-      checkArgument(policy != null, "Rule policy is undefined");
-      checkArgument(matches != null, "Match string is undefined");
-      checkArgument(StringUtils.isEmpty(matches), "Match string is empty");
 
       MappingRuleMatcher matcher;
       switch (type) {
@@ -106,7 +102,7 @@ public class MappingRuleCreator {
       MappingRuleAction action = null;
       switch (policy) {
       case DEFAULT_QUEUE:
-        String defaultQueue = getDefaultQueue(ruleDefaultQueue);
+        String defaultQueue = getDefaultQueue(queue);
         action = MappingRuleActions.createPlaceToQueueAction(defaultQueue);
         break;
       case REJECT:
@@ -115,6 +111,7 @@ public class MappingRuleCreator {
       case PRIMARY_GROUP:
         action = MappingRuleActions.createPlaceToQueueAction(
             getTargetQueue(queue, "%primary_group"));
+        break;
       case SPECIFIED_PLACEMENT:
         action = MappingRuleActions.createPlaceToQueueAction("%specified");
         break;
@@ -136,23 +133,19 @@ public class MappingRuleCreator {
             "Unsupported policy: " + policy);
       }
 
-      // TODO: make this mandatory?
-      if (fallbackResult == null) {
+      switch (fallbackResult) {
+      case PLACE_DEFAULT:
         action.setFallbackDefaultPlacement();
-      } else {
-        switch (fallbackResult) {
-        case PLACE_DEFAULT:
-          action.setFallbackDefaultPlacement();
-          break;
-        case REJECT:
-          action.setFallbackReject();
-          break;
-        case SKIP:
-          action.setFallbackSkip();
-        default:
-          throw new IllegalArgumentException(
-              "Unsupported fallback rule " + fallbackResult);
-        }
+        break;
+      case REJECT:
+        action.setFallbackReject();
+        break;
+      case SKIP:
+        action.setFallbackSkip();
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported fallback rule " + fallbackResult);
       }
 
       MappingRule mappingRule = new MappingRule(matcher, action);
@@ -162,7 +155,7 @@ public class MappingRuleCreator {
     return mappingRules;
   }
 
-  public MappingRuleAction getActionForNested(NestedUserRule nestedRule) {
+  private MappingRuleAction getActionForNested(NestedUserRule nestedRule) {
     Preconditions.checkArgument(nestedRule != null,
         "nested rule is undefined");
     OuterRule outerRule = nestedRule.getOuterRule();
@@ -175,10 +168,18 @@ public class MappingRuleCreator {
 
     switch (outerRule) {
     case PRIMARY_GROUP:
-      targetQueue += ".%primary_group";
+      if (targetQueue.isEmpty()) {
+        targetQueue = "%primary_group";
+      } else {
+        targetQueue += ".%primary_group";
+      }
       break;
     case SECONDARY_GROUP:
-      targetQueue += ".%secondary_group";
+      if (targetQueue.isEmpty()) {
+        targetQueue = "%secondary_group";
+      } else {
+        targetQueue += ".%secondary_group";
+      }
       break;
     case QUEUE:
       checkArgument(parent != null, "parent queue is null in nested rule");
@@ -192,7 +193,7 @@ public class MappingRuleCreator {
     return MappingRuleActions.createPlaceToQueueAction(targetQueue);
   }
 
-  public String getDefaultQueue(String ruleDefaultQueue) {
+  private String getDefaultQueue(String ruleDefaultQueue) {
     if (ruleDefaultQueue == null ||
         (FULL_DEFAULT_QUEUE_PATH.equals(ruleDefaultQueue) ||
         DEFAULT_QUEUE.equals(ruleDefaultQueue))) {
@@ -202,7 +203,17 @@ public class MappingRuleCreator {
     }
   }
 
-  public String getTargetQueue(String parent, String placeholder) {
-    return (parent== null) ? placeholder : parent + "." + placeholder;
+  private String getTargetQueue(String parent, String placeholder) {
+    return (parent == null) ? placeholder : parent + "." + placeholder;
+  }
+
+  private void checkMandatoryParameters(Rule rule) {
+    checkArgument(rule.getType() != null, "Rule type is undefined");
+    checkArgument(rule.getPolicy() != null, "Rule policy is undefined");
+    checkArgument(rule.getMatches() != null, "Match string is undefined");
+    checkArgument(rule.getFallbackResult() != null,
+        "Fallback result is undefined");
+    checkArgument(!StringUtils.isEmpty(rule.getMatches()),
+        "Match string is empty");
   }
 }

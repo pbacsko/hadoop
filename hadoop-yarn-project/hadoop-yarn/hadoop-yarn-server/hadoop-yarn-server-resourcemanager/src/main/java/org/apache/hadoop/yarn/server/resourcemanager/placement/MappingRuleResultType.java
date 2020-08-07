@@ -1,6 +1,6 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
-enum MappingRuleResultType {
+public enum MappingRuleResultType {
   //Represents a result where we simply ignore the current rule
   // and move onto the next one
   SKIP,

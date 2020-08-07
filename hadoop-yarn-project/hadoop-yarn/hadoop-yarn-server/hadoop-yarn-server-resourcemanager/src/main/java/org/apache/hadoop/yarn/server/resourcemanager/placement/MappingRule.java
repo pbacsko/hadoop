@@ -17,7 +17,7 @@ public class MappingRule {
    * @param variables The variable context, which contains all the variables
    * @return The rule's result or null if the rule doesn't apply
    */
-  MappingRuleResult evaluate(VariableContext variables) {
+  public MappingRuleResult evaluate(VariableContext variables) {
     if (matcher.match(variables)) {
       return action.execute(variables);
     }
@@ -29,7 +29,7 @@ public class MappingRule {
    * Returns the associated action's fallback
    * @return The fallback of the action
    */
-  MappingRuleResult getFallback() {
+  public MappingRuleResult getFallback() {
     return action.getFallback();
   }
 
