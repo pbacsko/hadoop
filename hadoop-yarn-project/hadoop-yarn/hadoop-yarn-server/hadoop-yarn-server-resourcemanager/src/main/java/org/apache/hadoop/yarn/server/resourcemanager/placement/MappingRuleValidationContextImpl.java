@@ -52,16 +52,33 @@ public class MappingRuleValidationContextImpl
         }
 
         if (!(parentQueue instanceof ManagedParentQueue)) {
-          throw new YarnException(
-              "Target queue '" + path.getFullPath() + "' does not exist and " +
-              "has a non-managed parent queue defined.");
+          //If the parent path was referenced by short name, and it is not
+          // managed, we look up if there is a queue under it with the leaf
+          // queue's name
+          String normalizedParentPath = parentQueue.getQueuePath() + "."
+              + path.getLeafName();
+          CSQueue normalizedQueue = queueManager.getQueue(normalizedParentPath);
+          if (normalizedQueue instanceof LeafQueue) {
+            return true;
+          }
+
+          if (normalizedQueue == null) {
+            throw new YarnException(
+                "Target queue '" + path.getFullPath() + "' does not exist" +
+                " and has a non-managed parent queue defined.");
+          } else {
+            throw new YarnException("Target queue '" + path + "' references" +
+                "a non-leaf queue, target queues must always be " +
+                "leaf queues.");
+          }
+
         }
 
       } else {
         // if queue exists, validate if its an instance of leaf queue
         if (!(queue instanceof LeafQueue)) {
           throw new YarnException("Target queue '" + path + "' references" +
-              "a non-leaf queue, static target queues must always be " +
+              "a non-leaf queue, target queues must always be " +
               "leaf queues.");
         }
       }
@@ -101,6 +118,9 @@ public class MappingRuleValidationContextImpl
 
       //There is no way we can place anything into the queue referenced by the
       // rule, because we cannot auto create, and we don't have any leaf queues
+      //Actually this branch is not accessibe with the current queue hierarchy,
+      //there should be no parents without any leaf queues. This condition says
+      //for sanity checks
       throw new YarnException("Target queue path '" + path + "' has" +
           "a non-managed parent queue which has no LeafQueues either.");
     }
