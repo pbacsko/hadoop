@@ -2,9 +2,19 @@ package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
+/**
+ * Mapping rule represents a single mapping setting defined by the user. All
+ * rules have matchers and actions. Matcher determine if a mapping rule applies
+ * to a given applicationSubmission, while action represent the course of action
+ * we need to take when a rule applies.
+ *
+ * MappingRules also support fallback actions, which will be evaluated when the
+ * main action fails due to any reason (Eg. trying to place to a queue which
+ * does not exist)
+ */
 public class MappingRule {
-  private MappingRuleMatcher matcher = null;
-  private MappingRuleAction action = null;
+  private final MappingRuleMatcher matcher = null;
+  private final MappingRuleAction action = null;
 
   public MappingRule(MappingRuleMatcher matcher, MappingRuleAction action) {
     this.matcher = matcher;
