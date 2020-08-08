@@ -12,12 +12,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestMappingRuleValidationContextImpl extends TestCase {
-  public void createQueueHierarchy(CapacitySchedulerQueueManager queueManager) {
-
-  }
-
   @Test
-  public void testContextVariables() throws IOException {
+  public void testContextVariables() {
     //Setting up queue manager and emulated queue hierarchy
     CapacitySchedulerQueueManager qm =
         mock(CapacitySchedulerQueueManager.class);
@@ -75,7 +71,7 @@ public class TestMappingRuleValidationContextImpl extends TestCase {
   }
 
   @Test
-  public void testDynamicQueueValidation() throws IOException {
+  public void testDynamicQueueValidation() {
     //Setting up queue manager and emulated queue hierarchy
     CapacitySchedulerQueueManager qm =
         mock(CapacitySchedulerQueueManager.class);
@@ -108,7 +104,7 @@ public class TestMappingRuleValidationContextImpl extends TestCase {
   }
 
   @Test
-  public void testStaticQueueValidation() throws IOException {
+  public void testStaticQueueValidation() {
     //Setting up queue manager and emulated queue hierarchy
     CapacitySchedulerQueueManager qm =
         mock(CapacitySchedulerQueueManager.class);
@@ -149,7 +145,5 @@ public class TestMappingRuleValidationContextImpl extends TestCase {
     assertInvalidPath(ctx, "queue.invalidPath");
     assertValidPath(ctx, "path");
     assertValidPath(ctx, "root.deep.queue.path");
-
   }
-
 }

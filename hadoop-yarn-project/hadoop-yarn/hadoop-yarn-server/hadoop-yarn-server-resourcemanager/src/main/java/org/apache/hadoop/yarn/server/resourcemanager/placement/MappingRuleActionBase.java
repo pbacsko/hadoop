@@ -1,9 +1,11 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
 public abstract class MappingRuleActionBase implements MappingRuleAction {
-  //The default fallback method is reject, so if the action fails
-  // We will reject the application. However this behaviour can be overridden
-  // on a per rule basis
+  /**
+   * The default fallback method is reject, so if the action fails
+   * We will reject the application. However this behaviour can be overridden
+   * on a per rule basis
+   */
   private MappingRuleResult fallback = MappingRuleResult.createRejectResult();
 
   /**

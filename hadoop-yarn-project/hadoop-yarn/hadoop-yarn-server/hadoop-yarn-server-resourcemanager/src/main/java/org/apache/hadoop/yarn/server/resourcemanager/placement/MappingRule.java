@@ -13,8 +13,8 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
  * does not exist)
  */
 public class MappingRule {
-  private final MappingRuleMatcher matcher = null;
-  private final MappingRuleAction action = null;
+  private final MappingRuleMatcher matcher;
+  private final MappingRuleAction action;
 
   public MappingRule(MappingRuleMatcher matcher, MappingRuleAction action) {
     this.matcher = matcher;

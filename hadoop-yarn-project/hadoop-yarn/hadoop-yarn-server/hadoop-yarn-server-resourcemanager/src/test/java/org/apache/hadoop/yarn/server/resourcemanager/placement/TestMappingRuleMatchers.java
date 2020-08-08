@@ -84,17 +84,31 @@ public class TestMappingRuleMatchers extends TestCase {
     MappingRuleMatcher userStatic =
         new MappingRuleMatchers.VariableMatcher("%user", "bob");
 
-    assertTrue(customUser.match(matchingContext));
-    assertTrue(userCustom.match(matchingContext));
-    assertTrue(userCusTom.match(matchingContext));
-    assertTrue(userUser.match(matchingContext));
-    assertTrue(userStatic.match(matchingContext));
+    assertTrue("%custom should match %user in matching context",
+        customUser.match(matchingContext));
+    assertTrue("%user should match %custom in matching context",
+        userCustom.match(matchingContext));
+    assertTrue("%user (bob) should match %cus%tom (b + ob) in matching context",
+        userCusTom.match(matchingContext));
+    assertTrue("%user should match %user in any context",
+        userUser.match(matchingContext));
+    assertTrue("%user (bob) should match bob in in matching context",
+        userStatic.match(matchingContext));
 
-    assertFalse(customUser.match(mismatchingContext));
-    assertFalse(userCustom.match(mismatchingContext));
-    assertFalse(userCusTom.match(mismatchingContext));
-    assertTrue(userUser.match(mismatchingContext));
-    assertFalse(userStatic.match(mismatchingContext));
+    assertFalse(
+        "%custom (bob) should NOT match %user (dave) in mismatching context",
+        customUser.match(mismatchingContext));
+    assertFalse(
+        "%user (dave) should NOT match %custom (bob) in mismatching context",
+        userCustom.match(mismatchingContext));
+    assertFalse(
+        "%user (dave) should NOT match %cus%tom (b+ob) in mismatching context",
+        userCusTom.match(mismatchingContext));
+    assertTrue("%user should match %user in any context",
+        userUser.match(mismatchingContext));
+    assertFalse(
+        "%user (dave) should NOT match match bob in in matching context",
+        userStatic.match(mismatchingContext));
   }
 
   @Test

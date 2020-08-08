@@ -4,12 +4,27 @@ import com.google.common.collect.ImmutableSet;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
+/**
+ * This class is a key-value store for the variables and their respective values
+ * during an application placement. The class gives support for immutable
+ * variables, which can be set only once, and has helper methods for replacing
+ * the variables with their respective values in provided strings.
+ * We don't extend the map interface, because we don't need all the features
+ * a map provides, this class try to be as simple as possible.
+ */
 public class VariableContext {
-  //This is our variable store
-  private HashMap<String, String> variables = new HashMap<>();
-  //This set contains the names of the immutable variables if null it is ignored
-  private ImmutableSet<String> immutableNames;
+  /**
+   * This is our actual variable store,
+   */
+  private Map<String, String> variables = new HashMap<>();
+  /**
+   * This set contains the names of the immutable variables if null it is
+   * ignored
+   */
+  private Set<String> immutableNames;
 
   /**
    * Checks if the provided variable is immutable.
@@ -27,12 +42,28 @@ public class VariableContext {
    * @throws IllegalStateException if the immutable set is already provided.
    * @return same instance of VariableContext for daisy chaining.
    */
-  public VariableContext setImmutables(ImmutableSet<String> immutableNames) {
+  public VariableContext setImmutables(Set<String> immutableNames) {
     if (this.immutableNames != null) {
       throw new IllegalStateException("Immutable variables are already defined,"
           + " variable immutability cannot be changed once set!");
     }
-    this.immutableNames = immutableNames;
+    this.immutableNames = ImmutableSet.copyOf(immutableNames);
+    return this;
+  }
+
+  /**
+   * Can be used to provide a set which contains the name of the variables which
+   * should be immutable
+   * @param immutableNames Set containing the names of the immutable variables
+   * @throws IllegalStateException if the immutable set is already provided.
+   * @return same instance of VariableContext for daisy chaining.
+   */
+  public VariableContext setImmutables(String... immutableNames) {
+    if (this.immutableNames != null) {
+      throw new IllegalStateException("Immutable variables are already defined,"
+          + " variable immutability cannot be changed once set!");
+    }
+    this.immutableNames = ImmutableSet.copyOf(immutableNames);
     return this;
   }
 
@@ -127,7 +158,7 @@ public class VariableContext {
     String[] parts = input.split("\\.");
     for (int i = 0; i < parts.length; i++) {
       //if the part is a variable it should be in the map, otherwise we keep
-      //it's original value. This means non defined variables will return the
+      //it's original value. This means undefined variables will return the
       //name of the variable, but this is working as intended.
       String newVal = variables.getOrDefault(parts[i], parts[i]);
       //if a variable's value is null, we use empty string instead

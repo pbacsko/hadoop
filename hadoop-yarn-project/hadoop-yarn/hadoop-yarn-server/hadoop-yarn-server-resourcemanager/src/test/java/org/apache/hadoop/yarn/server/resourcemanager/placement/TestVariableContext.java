@@ -29,7 +29,7 @@ public class TestVariableContext {
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testImmutablesCanOnlySetOnce() {
+  public void testImmutablesCanOnlySetOnceFromSet() {
     VariableContext variables = new VariableContext();
     ImmutableSet<String> immutables =
         ImmutableSet.of("%user", "%primary_group", "%secondary_group");
@@ -38,8 +38,26 @@ public class TestVariableContext {
     variables.setImmutables(immutables);
   }
 
+  @Test(expected = IllegalStateException.class)
+  public void testImmutablesCanOnlySetOnceFromArray() {
+    VariableContext variables = new VariableContext();
+
+    variables.setImmutables("%user", "%primary_group", "%secondary_group");
+    variables.setImmutables("%user", "%primary_group", "%secondary_group");
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testImmutablesCanOnlySetOnceFromSetAndArray() {
+    VariableContext variables = new VariableContext();
+    ImmutableSet<String> immutables =
+        ImmutableSet.of("%user", "%primary_group", "%secondary_group");
+
+    variables.setImmutables(immutables);
+    variables.setImmutables("%user", "%primary_group", "%secondary_group");
+  }
+
   @Test
-  public void testImmutableVariableCanBeSetOnceTime() {
+  public void testImmutableVariableCanBeSetOnce() {
     VariableContext variables = new VariableContext();
     ImmutableSet<String> immutables =
         ImmutableSet.of("%user", "%primary_group", "%secondary_group");
@@ -159,8 +177,8 @@ public class TestVariableContext {
     testCases.put(
         "userPhoneof%useris%userPhone", "userPhoneofbobis555-3221");
 
-    testCases.forEach(
-        (k,v) -> assertEquals(v, variables.replaceVariables(k)));
+    testCases.forEach((pattern,expected) ->
+      assertEquals(expected, variables.replaceVariables(pattern)));
   }
 
 }

@@ -17,8 +17,8 @@ public class TestMappingRule extends TestCase {
     variables.put("%sub", "xxx");
     variables.put("%empty", "");
     variables.put("%null", null);
-    variables.setImmutables(ImmutableSet.of(
-        "%user", "%primary_group", "%secondary_group", "%application"));
+    variables.setImmutables("%user", "%primary_group", "%secondary_group",
+        "%application");
 
     return variables;
   }

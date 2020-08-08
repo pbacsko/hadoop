@@ -1,29 +1,23 @@
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
-
-import com.google.common.collect.ImmutableSet;
 import junit.framework.TestCase;
 import org.junit.Test;
 
 public class TestMappingRuleActions extends TestCase {
   void assertRejectResult(MappingRuleResult result) {
-    assertTrue(
-        MappingRuleResultType.REJECT == result.getResult());
+    assertSame(MappingRuleResultType.REJECT, result.getResult());
   }
 
 
   void assertSkipResult(MappingRuleResult result) {
-  assertTrue(
-        MappingRuleResultType.SKIP == result.getResult());
+    assertSame(MappingRuleResultType.SKIP, result.getResult());
   }
 
   void assertPlaceDefaultResult(MappingRuleResult result) {
-    assertTrue(
-        MappingRuleResultType.PLACE_TO_DEFAULT == result.getResult());
+    assertSame(MappingRuleResultType.PLACE_TO_DEFAULT, result.getResult());
   }
 
   void assertPlaceResult(MappingRuleResult result, String queue) {
-    assertTrue(
-        MappingRuleResultType.PLACE == result.getResult());
+    assertSame(MappingRuleResultType.PLACE, result.getResult());
     assertEquals(queue, result.getQueue());
   }
 
@@ -53,14 +47,12 @@ public class TestMappingRuleActions extends TestCase {
   @Test
   public void testVariableUpdateAction() {
     VariableContext variables = new VariableContext();
-    ImmutableSet<String> immutables =
-        ImmutableSet.of("%immutable");
     variables.put("%default", "root.default");
     variables.put("%immutable", "immutable");
     variables.put("%empty", "");
     variables.put("%null", null);
     variables.put("%sub", "xxx");
-    variables.setImmutables(immutables);
+    variables.setImmutables("%immutable");
 
     MappingRuleAction updateDefaultManual =
         new MappingRuleActions.VariableUpdateAction("%default", "root.%sub");
@@ -92,7 +84,7 @@ public class TestMappingRuleActions extends TestCase {
 
     try {
       updateImmutable.execute(variables);
-      assertTrue("Should've failed with exception", false);
+      fail("Should've failed with exception");
     } catch (Exception e){
       assertTrue(e instanceof IllegalStateException);
     }
@@ -101,14 +93,12 @@ public class TestMappingRuleActions extends TestCase {
   @Test
   public void testPlaceToQueueAction() {
     VariableContext variables = new VariableContext();
-    ImmutableSet<String> immutables =
-        ImmutableSet.of("%immutable");
     variables.put("%default", "root.default");
     variables.put("%immutable", "immutable");
     variables.put("%empty", "");
     variables.put("%null", null);
     variables.put("%sub", "xxx");
-    variables.setImmutables(immutables);
+    variables.setImmutables("%immutable");
 
     MappingRuleAction placeToStatic =
         new MappingRuleActions.PlaceToQueueAction("root.static.queue");
