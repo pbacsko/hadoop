@@ -2,6 +2,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.netty.util.Mapping;
 import junit.framework.TestCase;
 import org.apache.hadoop.security.Groups;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
@@ -61,8 +62,15 @@ public class TestCSMappingPlacementRule extends TestCase {
     when(queueManager.isAmbiguous("primarygrouponly")).thenReturn(true);
   }
 
-  CSMappingPlacementRule createEngine(
+  CSMappingPlacementRule setupEngine(
       boolean overrideUserMappings, List<MappingRule> mappings)
+      throws IOException {
+    return setupEngine(overrideUserMappings, mappings, false);
+  }
+
+  CSMappingPlacementRule setupEngine(
+      boolean overrideUserMappings, List<MappingRule> mappings,
+      boolean failOnConfigError)
       throws IOException {
     //Capacity scheduler config mocks
     CapacitySchedulerConfiguration csConf =
@@ -90,6 +98,7 @@ public class TestCSMappingPlacementRule extends TestCase {
       when(groups.getGroupsSet(user)).thenReturn(userGroups.get(user));
     }
     engine.setGroups(groups);
+    engine.setFailOnConfigError(failOnConfigError);
     engine.initialize(cs);
 
     return engine;
@@ -155,7 +164,7 @@ public class TestCSMappingPlacementRule extends TestCase {
     rules.add(MappingRule.createLegacyRule(
         "u", "%user", "disambiuser.%user"));
 
-    CSMappingPlacementRule engine = createEngine(true, rules);
+    CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext asc = createApp("Default");
     assertPlace(engine, asc, "alice", "root.ambiguous.user.ambi");
     //should be rejected because ambi is ambiguous
@@ -181,7 +190,7 @@ public class TestCSMappingPlacementRule extends TestCase {
     rules.add(MappingRule.createLegacyRule(
         "u", "%user", "root.man.%user"));
 
-    CSMappingPlacementRule engine = createEngine(true, rules);
+    CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext asc = createApp("Default");
     assertPlace(engine, asc, "alice", "root.ambiguous.managed.alice");
     //should be rejected because managed is ambiguous
@@ -205,7 +214,7 @@ public class TestCSMappingPlacementRule extends TestCase {
     rules.add(MappingRule.createLegacyRule(
         "u", "dave", "ambi"));
 
-    CSMappingPlacementRule engine = createEngine(true, rules);
+    CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext asc = createApp("Default");
     //should be rejected non-existant does not exist
     assertReject(engine, asc, "alice");
@@ -258,7 +267,7 @@ public class TestCSMappingPlacementRule extends TestCase {
             MappingRuleMatchers.createApplicationNameMatcher("ShouldFail"),
             new MappingRuleActions.PlaceToQueueAction("root.default")));
 
-    CSMappingPlacementRule engine = createEngine(true, rules);
+    CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext fail = createApp("ShouldFail");
     ApplicationSubmissionContext success = createApp("ShouldSucceed");
 
@@ -278,6 +287,50 @@ public class TestCSMappingPlacementRule extends TestCase {
     // is placeToDefault, it should also fail, because we have just updated
     // default to an invalid valie
     assertReject(engine, fail, "emily");
+  }
+
+
+  public void testConfigValidation() throws IOException {
+    ArrayList<MappingRule> nonExistantStatic = new ArrayList<>();
+    nonExistantStatic.add(MappingRule.createLegacyRule(
+        "u", "alice", "non-existant"));
+
+    //since the %token is an unkown variable, it will be considered as
+    //a literal string, and since %token queue does not exit, it should fail
+    ArrayList<MappingRule> tokenAsStatic = new ArrayList<>();
+    tokenAsStatic.add(MappingRule.createLegacyRule(
+        "u", "alice", "%token"));
+
+    ArrayList<MappingRule> tokenAsDynamic = new ArrayList<>();
+    //this rule might change the value of the %token, so the validator will be
+    //aware of the %token variable
+    tokenAsDynamic.add(new MappingRule(
+        new MappingRuleMatchers.MatchAllMatcher(),
+        new MappingRuleActions.VariableUpdateAction("%token", "non-existant")
+    ));
+    //since %token is an known variable, this rule is considered dynamic
+    //so it cannot be entirely validated, this init should be successful
+    tokenAsDynamic.add(MappingRule.createLegacyRule(
+        "u", "alice", "%token"));
+
+
+    CSMappingPlacementRule engine;
+
+    try {
+      engine = setupEngine(true, nonExistantStatic, true);
+      fail("We expect the setup to fail");
+    } catch (IOException e) {}
+
+    try {
+      engine = setupEngine(true, tokenAsStatic, true);
+      fail("We expect the setup to fail");
+    } catch (IOException e) {}
+
+    try {
+      engine = setupEngine(true, tokenAsDynamic, true);
+    } catch (IOException e) {
+      fail("We expect the setup to succeed");
+    }
 
   }
 

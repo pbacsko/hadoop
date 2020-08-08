@@ -27,10 +27,15 @@ public class CSMappingPlacementRule extends PlacementRule {
   private ImmutableSet<String> immutableVariables;
   private Groups groups;
   private boolean overrideWithQueueMappings;
+  private boolean failOnConfigError = true;
 
   @VisibleForTesting
   public void setGroups(Groups groups) {
     this.groups = groups;
+  }
+
+  public void setFailOnConfigError(boolean failOnConfigError) {
+    this.failOnConfigError = failOnConfigError;
   }
 
   @Override
@@ -78,7 +83,9 @@ public class CSMappingPlacementRule extends PlacementRule {
       } catch (YarnException e) {
         LOG.error("Error initializing queue mappings, rule '" + rule + "' " +
             "has encountered a validation error: " + e.getMessage());
-        throw new IOException(e);
+        if (failOnConfigError) {
+          throw new IOException(e);
+        }
       }
     }
 
@@ -240,6 +247,12 @@ public class CSMappingPlacementRule extends PlacementRule {
       return new ApplicationPlacementContext(leaf, parent);
     }
 
+    //this statement is here only for future proofing and consistency.
+    // Currently there is no valid queue name which does not have a parent
+    // and valid for app placement. Since we normalize all paths, the only queue
+    // which can have no parent at this point is 'root', which is neither a
+    // leaf queue nor a managerParent queue. But it might become one, and
+    // it's better to leave the code consistent.
     return new ApplicationPlacementContext(queueName);
   }
 
