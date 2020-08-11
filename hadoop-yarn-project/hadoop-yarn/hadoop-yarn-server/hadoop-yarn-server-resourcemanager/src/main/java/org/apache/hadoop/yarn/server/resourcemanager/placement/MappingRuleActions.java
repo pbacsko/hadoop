@@ -94,12 +94,34 @@ public class MappingRuleActions {
     }
   }
 
+  public static class PlaceToDefaultAction extends MappingRuleActionBase {
+    @Override
+    public MappingRuleResult execute(VariableContext variables) {
+      return MappingRuleResult.createDefaultPlacementResult();
+    }
+
+    @Override
+    public void validate(MappingRuleValidationContext ctx)
+        throws YarnException {
+      // nop
+    }
+
+    @Override
+    public String toString() {
+      return "PlaceToDefaultAction";
+    }
+  }
+
   public static MappingRuleAction createUpdateDefaultAction(String queue) {
     return new VariableUpdateAction("%default", queue);
   }
 
   public static MappingRuleAction createPlaceToQueueAction(String queue) {
     return new PlaceToQueueAction(queue);
+  }
+
+  public static MappingRuleAction createPlaceToDefaultAction() {
+    return new PlaceToDefaultAction();
   }
 
   public static MappingRuleAction createRejectAction() {

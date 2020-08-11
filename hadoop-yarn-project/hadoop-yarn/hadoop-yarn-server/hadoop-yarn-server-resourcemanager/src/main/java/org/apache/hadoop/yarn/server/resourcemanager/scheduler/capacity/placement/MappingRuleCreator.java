@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRule;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleAction;
 import org.apache.hadoop.yarn.server.resourcemanager.placement.MappingRuleActions;
@@ -78,6 +79,7 @@ public class MappingRuleCreator {
       Policy policy = rule.getPolicy();
       String queue = rule.getQueue();
       FallbackResult fallbackResult = rule.getFallbackResult();
+      boolean updateDefaultQueue = false;
 
       MappingRuleMatcher matcher;
       switch (type) {
@@ -102,8 +104,8 @@ public class MappingRuleCreator {
       MappingRuleAction action = null;
       switch (policy) {
       case DEFAULT_QUEUE:
-        String defaultQueue = getDefaultQueue(queue);
-        action = MappingRuleActions.createPlaceToQueueAction(defaultQueue);
+        action = MappingRuleActions.createPlaceToDefaultAction();
+        updateDefaultQueue = true;
         break;
       case REJECT:
         action = MappingRuleActions.createRejectAction();
@@ -146,6 +148,20 @@ public class MappingRuleCreator {
       default:
         throw new IllegalArgumentException(
             "Unsupported fallback rule " + fallbackResult);
+      }
+
+      if (updateDefaultQueue) {
+        Pair<Boolean, String> defaultQueue = getDefaultQueue(queue);
+        // add an extra rule that causes the evaluator to update "%default" if necessary
+        if (defaultQueue.getLeft()) {
+          MappingRuleMatcher updateMatcher =
+              MappingRuleMatchers.createAllMatcher();
+          MappingRuleAction updateAction =
+              MappingRuleActions.createUpdateDefaultAction(defaultQueue.getRight());
+
+          MappingRule updateRule = new MappingRule(updateMatcher, updateAction);
+          mappingRules.add(updateRule);
+        }
       }
 
       MappingRule mappingRule = new MappingRule(matcher, action);
@@ -193,13 +209,13 @@ public class MappingRuleCreator {
     return MappingRuleActions.createPlaceToQueueAction(targetQueue);
   }
 
-  private String getDefaultQueue(String ruleDefaultQueue) {
+  private Pair<Boolean, String> getDefaultQueue(String ruleDefaultQueue) {
     if (ruleDefaultQueue == null ||
         (FULL_DEFAULT_QUEUE_PATH.equals(ruleDefaultQueue) ||
         DEFAULT_QUEUE.equals(ruleDefaultQueue))) {
-      return FULL_DEFAULT_QUEUE_PATH;
+      return Pair.of(false, null);
     } else {
-      return ruleDefaultQueue;
+      return Pair.of(true, ruleDefaultQueue);
     }
   }
 

@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.placement;
 
 import static org.junit.Assert.assertEquals;
@@ -116,7 +134,7 @@ public class TestMappingRuleCreator {
   public void testDefaultRule() {
     rule.setPolicy(Policy.DEFAULT_QUEUE);
 
-    verifyPlacementSucceeds(DEFAULT_QUEUE);
+    verifyDefaultPlacementSucceeds();
   }
 
   @Test
@@ -124,7 +142,7 @@ public class TestMappingRuleCreator {
     rule.setPolicy(Policy.DEFAULT_QUEUE);
     rule.setQueue("root.test");
 
-    verifyPlacementSucceeds("root.test");
+    verifyDefaultPlacementSucceeds("root.test");
   }
 
   @Test
@@ -132,7 +150,7 @@ public class TestMappingRuleCreator {
     rule.setPolicy(Policy.DEFAULT_QUEUE);
     rule.setQueue("default");
 
-    verifyPlacementSucceeds(DEFAULT_QUEUE);
+    verifyDefaultPlacementSucceeds();
   }
 
   @Test
@@ -140,7 +158,7 @@ public class TestMappingRuleCreator {
     rule.setPolicy(Policy.DEFAULT_QUEUE);
     rule.setQueue("root.default");
 
-    verifyPlacementSucceeds(DEFAULT_QUEUE);
+    verifyDefaultPlacementSucceeds();
   }
 
   @Test
@@ -372,6 +390,14 @@ public class TestMappingRuleCreator {
     verifyPlacement(MappingRuleResultType.PLACE, null);
   }
 
+  private void verifyDefaultPlacementSucceeds() {
+    verifyDefaultPlacement(null);
+  }
+
+  private void verifyDefaultPlacementSucceeds(String changedDefaultQueue) {
+    verifyDefaultPlacement(changedDefaultQueue);
+  }
+
   private void verifyPlacementSucceeds(String expectedQueue) {
     verifyPlacement(MappingRuleResultType.PLACE, expectedQueue);
   }
@@ -387,6 +413,7 @@ public class TestMappingRuleCreator {
   private void verifyPlacement(MappingRuleResultType expectedResultType,
       String expectedQueue) {
     List<MappingRule> rules = ruleCreator.getMappingRules(description);
+    assertEquals("Number of rules", 1, rules.size());
     MappingRule mpr = rules.get(0);
     MappingRuleResult result = mpr.evaluate(variableContext);
 
@@ -399,6 +426,32 @@ public class TestMappingRuleCreator {
 
     if (expectedQueue != null) {
       assertEquals("Evaluated queue", expectedQueue, result.getQueue());
+    }
+  }
+
+  private void verifyDefaultPlacement(String changedDefaultQueue) {
+    List<MappingRule> rules = ruleCreator.getMappingRules(description);
+
+    if (changedDefaultQueue != null) {
+      assertEquals("Number of rules", 2, rules.size());
+      MappingRule firstRule = rules.get(0);   // update %default
+      MappingRule secondRule = rules.get(1);  // place to default
+
+      MappingRuleResult firstResult = firstRule.evaluate(variableContext);
+      assertEquals("%default update rule result",
+          MappingRuleResultType.SKIP, firstResult.getResult());
+      String updatedDefault = variableContext.get("%default");
+      assertEquals("Updated default queue", changedDefaultQueue, updatedDefault);
+
+      MappingRuleResult secondResult = secondRule.evaluate(variableContext);
+      assertEquals("%default update rule result",
+          MappingRuleResultType.PLACE_TO_DEFAULT, secondResult.getResult());
+    } else {
+      assertEquals("Number of rules", 1, rules.size());
+      MappingRule mpr = rules.get(0);
+      MappingRuleResult result = mpr.evaluate(variableContext);
+      assertEquals("Mapping rule result",
+          MappingRuleResultType.PLACE_TO_DEFAULT, result.getResult());
     }
   }
 }
