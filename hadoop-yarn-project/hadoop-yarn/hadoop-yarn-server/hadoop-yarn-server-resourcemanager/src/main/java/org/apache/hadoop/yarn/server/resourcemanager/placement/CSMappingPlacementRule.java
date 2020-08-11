@@ -68,11 +68,12 @@ public class CSMappingPlacementRule extends PlacementRule {
   private boolean failOnConfigError = true;
 
   @VisibleForTesting
-  public void setGroups(Groups groups) {
+  void setGroups(Groups groups) {
     this.groups = groups;
   }
 
-  public void setFailOnConfigError(boolean failOnConfigError) {
+  @VisibleForTesting
+  void setFailOnConfigError(boolean failOnConfigError) {
     this.failOnConfigError = failOnConfigError;
   }
 

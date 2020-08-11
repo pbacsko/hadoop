@@ -134,11 +134,6 @@ public class TestCSMappingPlacementRule extends TestCase {
     return createApp(name, YarnConfiguration.DEFAULT_QUEUE_NAME);
   }
 
-  void assertReject(CSMappingPlacementRule engine,
-      ApplicationSubmissionContext asc, String user) {
-    assertReject("Placement should throw exception!", engine, asc, user);
-  }
-
   void assertReject(String message, CSMappingPlacementRule engine,
       ApplicationSubmissionContext asc, String user) {
     try {
@@ -171,11 +166,6 @@ public class TestCSMappingPlacementRule extends TestCase {
       LOG.error("{} {}", message, e);
       fail(message);
     }
-  }
-
-  void assertNull(CSMappingPlacementRule engine,
-      ApplicationSubmissionContext asc, String user) {
-    assertNull("Placement should not throw exception!", engine, asc, user);
   }
 
   void assertNull(String message, CSMappingPlacementRule engine,
@@ -331,13 +321,13 @@ public class TestCSMappingPlacementRule extends TestCase {
   }
 
   @Test
-  public void testConfigValidation() throws IOException {
+  public void testConfigValidation() {
     ArrayList<MappingRule> nonExistantStatic = new ArrayList<>();
     nonExistantStatic.add(MappingRule.createLegacyRule(
         "u", "alice", "non-existent"));
 
     //since the %token is an unknown variable, it will be considered as
-    //a literal string, and since %token queue does not exit, it should fail
+    //a literal string, and since %token queue does not exist, it should fail
     ArrayList<MappingRule> tokenAsStatic = new ArrayList<>();
     tokenAsStatic.add(MappingRule.createLegacyRule(
         "u", "alice", "%token"));
@@ -354,23 +344,25 @@ public class TestCSMappingPlacementRule extends TestCase {
     tokenAsDynamic.add(MappingRule.createLegacyRule(
         "u", "alice", "%token"));
 
-
-    CSMappingPlacementRule engine;
-
     try {
-      engine = setupEngine(true, nonExistantStatic, true);
-      fail("We expect the setup to fail");
+      setupEngine(true, nonExistantStatic, true);
+      fail("We expect the setup to fail because we have a static rule " +
+          "referencing a non-existent queue");
     } catch (IOException e) {}
 
     try {
-      engine = setupEngine(true, tokenAsStatic, true);
-      fail("We expect the setup to fail");
+      setupEngine(true, tokenAsStatic, true);
+      fail("We expect the setup to fail because we have a rule containing an " +
+          "unknown token, which is considered a static rule, with a " +
+          "non-existent queue");
     } catch (IOException e) {}
 
     try {
-      engine = setupEngine(true, tokenAsDynamic, true);
+      setupEngine(true, tokenAsDynamic, true);
     } catch (IOException e) {
-      fail("We expect the setup to succeed");
+      fail("We expect the setup to succeed because the %token is a known " +
+          "variable so the rule is considered dynamic without parent, " +
+          "and this always should pass");
     }
   }
 

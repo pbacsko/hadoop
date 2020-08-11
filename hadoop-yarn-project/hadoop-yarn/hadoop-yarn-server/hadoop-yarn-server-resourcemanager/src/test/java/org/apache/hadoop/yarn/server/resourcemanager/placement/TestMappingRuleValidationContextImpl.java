@@ -18,18 +18,16 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
-import junit.framework.TestCase;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerQueueManager;
 import org.junit.Test;
 
-import java.io.IOException;
-
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class TestMappingRuleValidationContextImpl extends TestCase {
+public class TestMappingRuleValidationContextImpl {
   @Test
   public void testContextVariables() {
     //Setting up queue manager and emulated queue hierarchy
