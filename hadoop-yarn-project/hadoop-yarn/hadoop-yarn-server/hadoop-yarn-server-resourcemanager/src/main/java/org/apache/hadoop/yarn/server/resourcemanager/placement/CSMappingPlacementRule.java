@@ -36,13 +36,33 @@ import java.util.Set;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration.DOT;
 
+/**
+ * This class is responsible for making application submissions to queue
+ * assignments, based on the configured ruleset. This class supports all
+ * features supported by UserGroupMappingPlacementRule and
+ * AppNameMappingPlacementRule classes, also adding some features which are
+ * present in fair scheduler queue placement. This helps to reduce the gap
+ * between the two schedulers.
+ */
 public class CSMappingPlacementRule extends PlacementRule {
   private static final Logger LOG = LoggerFactory
       .getLogger(CSMappingPlacementRule.class);
 
   private CapacitySchedulerQueueManager queueManager;
   private List<MappingRule> mappingRules;
-  private ImmutableSet<String> immutableVariables;
+
+  /**
+   * These are the variables we associate a special meaning, these should be
+   * immutable for each variable context.
+   */
+  private ImmutableSet<String> immutableVariables = ImmutableSet.of(
+      "%user",
+      "%primary_group",
+      "%secondary_group",
+      "%application",
+      "%specified"
+      );
+
   private Groups groups;
   private boolean overrideWithQueueMappings;
   private boolean failOnConfigError = true;
@@ -73,16 +93,6 @@ public class CSMappingPlacementRule extends PlacementRule {
     if (groups == null) {
       groups = Groups.getUserToGroupsMappingService(conf);
     }
-
-    //These are the variables we associate a special meaning, these should be
-    //immutable for each variable context.
-    immutableVariables = ImmutableSet.of(
-      "%user",
-      "%primary_group",
-      "%secondary_group",
-      "%application",
-      "%specified"
-    );
 
     MappingRuleValidationContext validationContext =
         new MappingRuleValidationContextImpl(queueManager);
@@ -122,12 +132,17 @@ public class CSMappingPlacementRule extends PlacementRule {
     return groups.getGroupsSet(user).iterator().next();
   }
 
+  /**
+   * Traverse all secondary groups (as there could be more than one
+   * and position is not guaranteed) and ensure there is queue with
+   * the same name
+   * @param user Name of the user
+   * @return Name of the secondary group if found, null otherwise
+   * @throws IOException
+   */
   private String getSecondaryGroup(String user) throws IOException {
     Set<String> groupsSet = groups.getGroupsSet(user);
     String secondaryGroup = null;
-    // Traverse all secondary groups (as there could be more than one
-    // and position is not guaranteed) and ensure there is queue with
-    // the same name
     Iterator<String> it = groupsSet.iterator();
     it.next();
     while (it.hasNext()) {
@@ -236,11 +251,20 @@ public class CSMappingPlacementRule extends PlacementRule {
     return queue.getQueuePath();
   }
 
+  /**
+   * Evaluates the mapping rule using the provided variable context. For
+   * placement results we check if the placement is valid, and in case of
+   * invalid placements we use the rule's fallback settings to get the result.
+   * @param rule The mapping rule to be evaluated
+   * @param variables The variables and their respective values
+   * @return Evaluated rule or null if rule does not apply to the variable
+   * context.
+   */
   private MappingRuleResult evaluateRule(
       MappingRule rule, VariableContext variables) {
     MappingRuleResult result = rule.evaluate(variables);
     if (result == null) {
-      return null;
+      return result;
     }
 
     if (result.getResult() == MappingRuleResultType.PLACE) {
@@ -298,36 +322,16 @@ public class CSMappingPlacementRule extends PlacementRule {
     for (MappingRule rule : mappingRules) {
       MappingRuleResult result = evaluateRule(rule, variables);
       //null result means the rule does not apply, we can move onto the next
-      if (result == null) continue;
+      if (result == null) {
+        LOG.debug("Rule '{}' does not apply to submitted application.", rule);
+        continue;
+      }
 
         switch (result.getResult()) {
           case PLACE_TO_DEFAULT:
-            try {
-              String queueName = validateAndNormalizeQueue(
-                  variables.replacePathVariables("%default"));
-              LOG.debug("Application '{}' have been placed to queue '{}' by " +
-                      "the fallback option of rule {}",
-                  asc.getApplicationName(), queueName, rule);
-              return createPlacementContext(queueName);
-            } catch (YarnException e) {
-              LOG.error("Rejecting application due to a failed fallback" +
-                  " action '{}'" + ", reason: {}", asc.getApplicationName(),
-                  e.getMessage());
-              //We intentionally omit the details, we don't want any server side
-              //config information to leak to the client side
-              throw new YarnException("Application have been rejected by a" +
-                  " mapping rule. Please see the logs for details");
-            }
+            return placeToDefault(asc, variables, rule);
           case PLACE:
-            LOG.debug("Application '{}' have been placed to queue '{}' by " +
-              "rule {}", asc.getApplicationName(), result.getNormalizedQueue(),
-              rule);
-            //evaluateRule will only return a PLACE rule, if it is verified
-            //and normalized, so it is safe here to simply create the placement
-            //context
-            return createPlacementContext(result.getNormalizedQueue());
-          //if the queue is not valid, we reject the application, hence the
-          //missing break!
+            return placeToQueue(asc, rule, result);
           case REJECT:
             LOG.info("Rejecting application '{}', reason: Mapping rule '{}' "
               + " fallback action action is set to REJECT.",
@@ -336,11 +340,52 @@ public class CSMappingPlacementRule extends PlacementRule {
             //config information to leak to the client side
             throw new YarnException("Application have been rejected by a" +
                 " mapping rule. Please see the logs for details");
+          case SKIP:
           //SKIP means skip to the next rule, which is the default behaviour of
           //the for loop, so we don't need to take any extra actions
+            break;
+          default:
+            LOG.error("Invalid result '{}'", result);
         }
     }
 
+    //If no rule was applied we return null, to let the engine move onto the
+    //next placementRule class
     return null;
+  }
+
+  private ApplicationPlacementContext placeToQueue(
+      ApplicationSubmissionContext asc,
+      MappingRule rule,
+      MappingRuleResult result) {
+    LOG.debug("Application '{}' have been placed to queue '{}' by " +
+      "rule {}", asc.getApplicationName(), result.getNormalizedQueue(),
+      rule);
+    //evaluateRule will only return a PLACE rule, if it is verified
+    //and normalized, so it is safe here to simply create the placement
+    //context
+    return createPlacementContext(result.getNormalizedQueue());
+  }
+
+  private ApplicationPlacementContext placeToDefault(
+      ApplicationSubmissionContext asc,
+      VariableContext variables,
+      MappingRule rule) throws YarnException {
+    try {
+      String queueName = validateAndNormalizeQueue(
+          variables.replacePathVariables("%default"));
+      LOG.debug("Application '{}' have been placed to queue '{}' by " +
+              "the fallback option of rule {}",
+          asc.getApplicationName(), queueName, rule);
+      return createPlacementContext(queueName);
+    } catch (YarnException e) {
+      LOG.error("Rejecting application due to a failed fallback" +
+          " action '{}'" + ", reason: {}", asc.getApplicationName(),
+          e.getMessage());
+      //We intentionally omit the details, we don't want any server side
+      //config information to leak to the client side
+      throw new YarnException("Application have been rejected by a" +
+          " mapping rule. Please see the logs for details");
+    }
   }
 }

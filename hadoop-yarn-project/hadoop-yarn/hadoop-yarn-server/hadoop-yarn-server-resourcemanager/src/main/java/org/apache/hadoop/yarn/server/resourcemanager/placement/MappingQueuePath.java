@@ -23,7 +23,6 @@ import static org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.C
 public class MappingQueuePath {
   private String parent;
   private String leaf;
-  private boolean normalized = false;
 
   public MappingQueuePath(String parent, String leaf) {
     this.parent = parent;
@@ -57,17 +56,8 @@ public class MappingQueuePath {
     return hasParent() ? (parent + DOT + leaf) : leaf;
   }
 
-  public void normalize(String normalizedPath) {
-    normalized = true;
-    setFromFullPath(normalizedPath);
-  }
-
   public boolean hasParent() {
     return null != parent;
-  }
-
-  public boolean isNormalized() {
-    return normalized;
   }
 
   @Override

@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.netty.util.Mapping;
 import junit.framework.TestCase;
 import org.apache.hadoop.security.Groups;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
@@ -29,7 +28,10 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerQueueManager;
+import org.apache.hadoop.yarn.util.Records;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,7 +45,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestCSMappingPlacementRule extends TestCase {
-  CapacitySchedulerConfiguration csConf = new CapacitySchedulerConfiguration();
+  private static final Logger LOG = LoggerFactory
+      .getLogger(TestCSMappingPlacementRule.class);
   Map<String, Set<String>> userGroups = ImmutableMap.of(
       "alice", ImmutableSet.of("p_alice", "user", "developer"),
       "bob", ImmutableSet.of("p_bob", "user", "developer"),
@@ -90,19 +93,17 @@ public class TestCSMappingPlacementRule extends TestCase {
       boolean overrideUserMappings, List<MappingRule> mappings,
       boolean failOnConfigError)
       throws IOException {
-    //Capacity scheduler config mocks
+
     CapacitySchedulerConfiguration csConf =
         mock(CapacitySchedulerConfiguration.class);
     when(csConf.getMappingRules()).thenReturn(mappings);
     when(csConf.getOverrideWithQueueMappings())
         .thenReturn(overrideUserMappings);
 
-    //Setting up queue manager and emulated queue hierarchy
     CapacitySchedulerQueueManager qm =
         mock(CapacitySchedulerQueueManager.class);
     createQueueHierarchy(qm);
 
-    //setting up capacity scheduler mock with qm and config
     CapacityScheduler cs = mock(CapacityScheduler.class);
     when(cs.getConfiguration()).thenReturn(csConf);
     when(cs.getCapacitySchedulerQueueManager()).thenReturn(qm);
@@ -123,8 +124,10 @@ public class TestCSMappingPlacementRule extends TestCase {
   }
 
   ApplicationSubmissionContext createApp(String name, String queue) {
-    return ApplicationSubmissionContext.newInstance(
-        null, name, queue, null, null, false, false, 2, null, null, false);
+    ApplicationSubmissionContext ctx = Records.newRecord(ApplicationSubmissionContext.class);
+    ctx.setApplicationName(name);
+    ctx.setQueue(queue);
+    return ctx;
   }
 
   ApplicationSubmissionContext createApp(String name) {
@@ -133,20 +136,30 @@ public class TestCSMappingPlacementRule extends TestCase {
 
   void assertReject(CSMappingPlacementRule engine,
       ApplicationSubmissionContext asc, String user) {
+    assertReject("Placement should throw exception!", engine, asc, user);
+  }
+
+  void assertReject(String message, CSMappingPlacementRule engine,
+      ApplicationSubmissionContext asc, String user) {
     try {
       engine.getPlacementForApp(asc, user);
-      fail("Placement should throw exception!");
+      fail(message);
     } catch (YarnException e) {
-      //unnecessary, but feels more consistent
+      //To prevent PlacementRule chaining present in PlacementManager
+      //when an application is rejected an exception is thrown to make sure
+      //no other engine will try to place it.
       assertTrue(true);
     }
-
   }
 
   void assertPlace(CSMappingPlacementRule engine,
-      ApplicationSubmissionContext asc, String user,
-      String expectedQueue) {
+      ApplicationSubmissionContext asc, String user, String expectedQueue) {
+    assertPlace("Placement should not throw exception!",
+        engine, asc, user, expectedQueue);
+  }
 
+  void assertPlace(String message, CSMappingPlacementRule engine,
+      ApplicationSubmissionContext asc, String user, String expectedQueue) {
     try {
       ApplicationPlacementContext apc = engine.getPlacementForApp(asc, user);
       assertNotNull(apc);
@@ -155,18 +168,23 @@ public class TestCSMappingPlacementRule extends TestCase {
       queue += apc.getQueue();
       assertEquals(expectedQueue,  queue);
     } catch (YarnException e) {
-      e.printStackTrace();
-      fail("Placement should not throw exception!");
+      LOG.error("{} {}", message, e);
+      fail(message);
     }
   }
 
   void assertNull(CSMappingPlacementRule engine,
       ApplicationSubmissionContext asc, String user) {
+    assertNull("Placement should not throw exception!", engine, asc, user);
+  }
+
+  void assertNull(String message, CSMappingPlacementRule engine,
+      ApplicationSubmissionContext asc, String user) {
     try {
       assertNull(engine.getPlacementForApp(asc, user));
     } catch (YarnException e) {
-      e.printStackTrace();
-      fail("Placement should not throw exception!");
+      LOG.error("{} {}", message, e);
+      fail(message);
     }
   }
 
@@ -175,26 +193,24 @@ public class TestCSMappingPlacementRule extends TestCase {
     ArrayList<MappingRule> rules = new ArrayList<>();
     rules.add(MappingRule.createLegacyRule(
         "u", "alice", "root.ambiguous.user.ambi"));
-    rules.add(MappingRule.createLegacyRule(
-        "u", "bob", "ambi"));
-    rules.add(MappingRule.createLegacyRule(
-        "u", "dave", "disambi"));
-    rules.add(MappingRule.createLegacyRule(
-        "u", "%user", "disambiuser.%user"));
+    rules.add(MappingRule.createLegacyRule("u", "bob", "ambi"));
+    rules.add(MappingRule.createLegacyRule("u", "dave", "disambi"));
+    rules.add(MappingRule.createLegacyRule("u", "%user", "disambiuser.%user"));
 
     CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext asc = createApp("Default");
     assertPlace(engine, asc, "alice", "root.ambiguous.user.ambi");
-    //should be rejected because ambi is ambiguous
-    assertReject(engine, asc, "bob");
+    assertReject("Should be rejected because ambi is ambiguous",
+        engine, asc, "bob");
     assertPlace(engine, asc, "emily",
         "root.disambiguous.deep.disambiuser.emily");
-    //should be rejected because disambiuser.charile does not exit
-    assertReject(engine, asc, "charlie");
+    assertReject("Should be rejected because disambiuser.charile does not exit",
+        engine, asc, "charlie");
     assertPlace(engine, asc, "dave",
         "root.disambiguous.deep.disambiuser.disambi");
   }
 
+  @Test
   public void testLegacyPlacementToManagedQueues() throws IOException {
     ArrayList<MappingRule> rules = new ArrayList<>();
     rules.add(MappingRule.createLegacyRule(
@@ -204,27 +220,28 @@ public class TestCSMappingPlacementRule extends TestCase {
     rules.add(MappingRule.createLegacyRule(
         "u", "charlie", "root.unman.charlie"));
     rules.add(MappingRule.createLegacyRule(
-        "u", "dave", "non-existant.%user"));
+        "u", "dave", "non-existent.%user"));
     rules.add(MappingRule.createLegacyRule(
         "u", "%user", "root.man.%user"));
 
     CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext asc = createApp("Default");
     assertPlace(engine, asc, "alice", "root.ambiguous.managed.alice");
-    //should be rejected because managed is ambiguous
-    assertReject(engine, asc, "bob");
-    //should be rejected because root.unman is not managed
-    assertReject(engine, asc, "charlie");
-    //should be rejected because parent queue does not exist
-    assertReject(engine, asc, "dave");
+    assertReject("Should be rejected because managed is ambiguous",
+        engine, asc, "bob");
+    assertReject("Should be rejected because root.unman is not managed",
+        engine, asc, "charlie");
+    assertReject("Should be rejected because parent queue does not exist",
+        engine, asc, "dave");
     assertPlace(engine, asc, "emily",
         "root.man.emily");
   }
 
+  @Test
   public void testLegacyPlacementShortReference() throws IOException {
     ArrayList<MappingRule> rules = new ArrayList<>();
     rules.add(MappingRule.createLegacyRule(
-        "u", "alice", "non-existant"));
+        "u", "alice", "non-existent"));
     rules.add(MappingRule.createLegacyRule(
         "u", "bob", "root"));
     rules.add(MappingRule.createLegacyRule(
@@ -234,27 +251,28 @@ public class TestCSMappingPlacementRule extends TestCase {
 
     CSMappingPlacementRule engine = setupEngine(true, rules);
     ApplicationSubmissionContext asc = createApp("Default");
-    //should be rejected non-existant does not exist
-    assertReject(engine, asc, "alice");
-    //should be rejected root is never managed
-    assertReject(engine, asc, "bob");
-    //should be rejected managed parent is not a leaf queue
-    assertReject(engine, asc, "charlie");
-    //should be rejected ambi is an ambiguous reference
-    assertReject(engine, asc, "dave");
+    assertReject("Should be rejected non-existent does not exist",
+        engine, asc, "alice");
+    assertReject("Should be rejected root is never managed",
+        engine, asc, "bob");
+    assertReject("Should be rejected managed parent is not a leaf queue",
+        engine, asc, "charlie");
+    assertReject("Should be rejected ambi is an ambiguous reference",
+        engine, asc, "dave");
   }
 
+  @Test
   public void testRuleFallbackHandling() throws IOException {
     ArrayList<MappingRule> rules = new ArrayList<>();
     rules.add(
         new MappingRule(
             MappingRuleMatchers.createUserMatcher("alice"),
-            (new MappingRuleActions.PlaceToQueueAction("non-existant"))
+            (new MappingRuleActions.PlaceToQueueAction("non-existent"))
                 .setFallbackReject()));
     rules.add(
         new MappingRule(
             MappingRuleMatchers.createUserMatcher("bob"),
-            (new MappingRuleActions.PlaceToQueueAction("non-existant"))
+            (new MappingRuleActions.PlaceToQueueAction("non-existent"))
                 .setFallbackSkip()));
     rules.add(
         new MappingRule(
@@ -267,7 +285,7 @@ public class TestCSMappingPlacementRule extends TestCase {
     rules.add(
         new MappingRule(
             MappingRuleMatchers.createUserMatcher("charlie"),
-            (new MappingRuleActions.PlaceToQueueAction("non-existant"))
+            (new MappingRuleActions.PlaceToQueueAction("non-existent"))
                 .setFallbackDefaultPlacement()));
     rules.add(
         new MappingRule(
@@ -276,7 +294,7 @@ public class TestCSMappingPlacementRule extends TestCase {
     rules.add(
         new MappingRule(
             MappingRuleMatchers.createUserMatcher("emily"),
-            (new MappingRuleActions.PlaceToQueueAction("non-existant"))
+            (new MappingRuleActions.PlaceToQueueAction("non-existent"))
                 .setFallbackDefaultPlacement()));
     //This rule is to catch all shouldfail applications, and place them to a
     // queue, so we can detect they were not rejected nor null-ed
@@ -289,31 +307,36 @@ public class TestCSMappingPlacementRule extends TestCase {
     ApplicationSubmissionContext fail = createApp("ShouldFail");
     ApplicationSubmissionContext success = createApp("ShouldSucceed");
 
-    //Alice has a straight up reject rule, her application should be rejected
-    assertReject(engine, fail, "alice");
-    //Bob should fail to place to non-existant -> should skip to next rule
-    //Bob should update the %default to root.invalid
-    //Bob should fail to place the app to %default which is root.invalid
-    assertReject(engine, fail, "bob");
-    //Charile should be able to place the app to root.default as the
-    // non-existant queue does not exist, but fallback is place to default
-    assertPlace(engine, success, "charlie", "root.default");
-    //Dave with success app has no matching rule, so we expect a null result
-    assertNull(engine, success, "dave");
-    //Emily should update the %default to root.invalid
-    //Bob should fail to place the app to non-existant and since the fallback
-    // is placeToDefault, it should also fail, because we have just updated
-    // default to an invalid valie
-    assertReject(engine, fail, "emily");
+    assertReject("Alice has a straight up reject rule, " +
+        "her application should be rejected",
+        engine, fail, "alice");
+    assertReject(
+        "Bob should fail to place to non-existent -> should skip to next rule" +
+        "\nBob should update the %default to root.invalid" +
+        "\nBob should fail to place the app to %default which is root.invalid",
+        engine, fail, "bob");
+    assertPlace(
+        "Charile should be able to place the app to root.default as the" +
+        "non-existent queue does not exist, but fallback is place to default",
+        engine, success, "charlie", "root.default");
+    assertNull(
+        "Dave with success app has no matching rule, so we expect a null",
+        engine, success, "dave");
+    assertReject(
+        "Emily should update the %default to root.invalid" +
+        "\nBob should fail to place the app to non-existent and since the" +
+        " fallback is placeToDefault, it should also fail, because we have" +
+        " just updated default to an invalid value",
+        engine, fail, "emily");
   }
 
-
+  @Test
   public void testConfigValidation() throws IOException {
     ArrayList<MappingRule> nonExistantStatic = new ArrayList<>();
     nonExistantStatic.add(MappingRule.createLegacyRule(
-        "u", "alice", "non-existant"));
+        "u", "alice", "non-existent"));
 
-    //since the %token is an unkown variable, it will be considered as
+    //since the %token is an unknown variable, it will be considered as
     //a literal string, and since %token queue does not exit, it should fail
     ArrayList<MappingRule> tokenAsStatic = new ArrayList<>();
     tokenAsStatic.add(MappingRule.createLegacyRule(
@@ -324,7 +347,7 @@ public class TestCSMappingPlacementRule extends TestCase {
     //aware of the %token variable
     tokenAsDynamic.add(new MappingRule(
         new MappingRuleMatchers.MatchAllMatcher(),
-        new MappingRuleActions.VariableUpdateAction("%token", "non-existant")
+        new MappingRuleActions.VariableUpdateAction("%token", "non-existent")
     ));
     //since %token is an known variable, this rule is considered dynamic
     //so it cannot be entirely validated, this init should be successful
@@ -349,7 +372,6 @@ public class TestCSMappingPlacementRule extends TestCase {
     } catch (IOException e) {
       fail("We expect the setup to succeed");
     }
-
   }
 
 }
