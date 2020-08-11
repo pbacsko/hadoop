@@ -257,15 +257,11 @@ public class CSMappingPlacementRule extends PlacementRule {
    * invalid placements we use the rule's fallback settings to get the result.
    * @param rule The mapping rule to be evaluated
    * @param variables The variables and their respective values
-   * @return Evaluated rule or null if rule does not apply to the variable
-   * context.
+   * @return Evaluation result
    */
   private MappingRuleResult evaluateRule(
       MappingRule rule, VariableContext variables) {
     MappingRuleResult result = rule.evaluate(variables);
-    if (result == null) {
-      return result;
-    }
 
     if (result.getResult() == MappingRuleResultType.PLACE) {
       try {
@@ -321,32 +317,26 @@ public class CSMappingPlacementRule extends PlacementRule {
 
     for (MappingRule rule : mappingRules) {
       MappingRuleResult result = evaluateRule(rule, variables);
-      //null result means the rule does not apply, we can move onto the next
-      if (result == null) {
-        LOG.debug("Rule '{}' does not apply to submitted application.", rule);
-        continue;
+      switch (result.getResult()) {
+        case PLACE_TO_DEFAULT:
+          return placeToDefault(asc, variables, rule);
+        case PLACE:
+          return placeToQueue(asc, rule, result);
+        case REJECT:
+          LOG.info("Rejecting application '{}', reason: Mapping rule '{}' "
+            + " fallback action action is set to REJECT.",
+            asc.getApplicationName(), rule);
+          //We intentionally omit the details, we don't want any server side
+          //config information to leak to the client side
+          throw new YarnException("Application have been rejected by a" +
+              " mapping rule. Please see the logs for details");
+        case SKIP:
+        //SKIP means skip to the next rule, which is the default behaviour of
+        //the for loop, so we don't need to take any extra actions
+          break;
+        default:
+          LOG.error("Invalid result '{}'", result);
       }
-
-        switch (result.getResult()) {
-          case PLACE_TO_DEFAULT:
-            return placeToDefault(asc, variables, rule);
-          case PLACE:
-            return placeToQueue(asc, rule, result);
-          case REJECT:
-            LOG.info("Rejecting application '{}', reason: Mapping rule '{}' "
-              + " fallback action action is set to REJECT.",
-              asc.getApplicationName(), rule);
-            //We intentionally omit the details, we don't want any server side
-            //config information to leak to the client side
-            throw new YarnException("Application have been rejected by a" +
-                " mapping rule. Please see the logs for details");
-          case SKIP:
-          //SKIP means skip to the next rule, which is the default behaviour of
-          //the for loop, so we don't need to take any extra actions
-            break;
-          default:
-            LOG.error("Invalid result '{}'", result);
-        }
     }
 
     //If no rule was applied we return null, to let the engine move onto the

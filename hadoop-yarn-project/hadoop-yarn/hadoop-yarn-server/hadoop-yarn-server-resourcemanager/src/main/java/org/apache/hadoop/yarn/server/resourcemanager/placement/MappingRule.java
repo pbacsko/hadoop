@@ -41,16 +41,16 @@ public class MappingRule {
 
   /**
    * This method evaluates the rule, and returns the MappingRuleResult, if
-   * the rule matches, null otherwise.
+   * the rule matches, skip action otherwise.
    * @param variables The variable context, which contains all the variables
-   * @return The rule's result or null if the rule doesn't apply
+   * @return The rule's result or skip action if the rule doesn't apply
    */
   public MappingRuleResult evaluate(VariableContext variables) {
     if (matcher.match(variables)) {
       return action.execute(variables);
     }
 
-    return null;
+    return MappingRuleResult.createSkipResult();
   }
 
   /**

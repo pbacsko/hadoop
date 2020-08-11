@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.placement;
 
-import com.google.common.collect.ImmutableSet;
 import junit.framework.TestCase;
 import org.apache.hadoop.util.StringUtils;
 import org.junit.Test;
@@ -39,11 +38,6 @@ public class TestMappingRule extends TestCase {
         "%application");
 
     return variables;
-  }
-
-  void assertRejectResult(MappingRuleResult result) {
-    assertTrue(
-        MappingRuleResultType.REJECT == result.getResult());
   }
 
   void assertSkipResult(MappingRuleResult result) {
@@ -75,7 +69,7 @@ public class TestMappingRule extends TestCase {
     MappingRuleResult matchingResult = rule.evaluate(matching);
     MappingRuleResult mismatchingResult = rule.evaluate(mismatching);
 
-    assertNull(mismatchingResult);
+    assertSkipResult(mismatchingResult);
     assertPlaceResult(matchingResult, "root.default.root.default");
   }
 
@@ -98,7 +92,7 @@ public class TestMappingRule extends TestCase {
     MappingRuleResult result = rule.evaluate(variables);
 
     if (expectedQueue == null) {
-      assertNull(result);
+      assertSkipResult(result);
       return;
     }
 
