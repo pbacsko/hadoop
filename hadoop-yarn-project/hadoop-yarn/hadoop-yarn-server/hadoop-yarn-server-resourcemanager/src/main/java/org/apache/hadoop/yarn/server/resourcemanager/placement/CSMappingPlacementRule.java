@@ -77,6 +77,35 @@ public class CSMappingPlacementRule extends PlacementRule {
     this.failOnConfigError = failOnConfigError;
   }
 
+  MappingRuleValidationContext buildValidationContext(
+      Set<String> variables, CapacitySchedulerQueueManager qm
+  ) throws IOException {
+    MappingRuleValidationContext validationContext =
+        new MappingRuleValidationContextImpl(qm);
+
+    //Adding all immutable variables to the known variable list
+    for (String var : variables) {
+      try {
+        validationContext.addImmutableVariable(var);
+      } catch (YarnException e) {
+        LOG.error("Error initializing placement variables unable to register" +
+            " '%default': " + e.getMessage());
+        throw new IOException(e);
+      }
+    }
+    //Immutables + %default are the only officially supported variables,
+    //We initialize the context with these, and let the rules to extend the list
+    try {
+      validationContext.addVariable("%default");
+    } catch (YarnException e) {
+      LOG.error("Error initializing placement variables unable to register" +
+          " '%default': " + e.getMessage());
+      throw new IOException(e);
+    }
+
+    return validationContext;
+  }
+
   @Override
   public boolean initialize(ResourceScheduler scheduler) throws IOException {
     if (!(scheduler instanceof CapacityScheduler)) {
@@ -95,14 +124,8 @@ public class CSMappingPlacementRule extends PlacementRule {
       groups = Groups.getUserToGroupsMappingService(conf);
     }
 
-    MappingRuleValidationContext validationContext =
-        new MappingRuleValidationContextImpl(queueManager);
-
-    //Adding all immutable variables to the known variable list
-    immutableVariables.forEach(var -> validationContext.addVariable(var));
-    //Immutables + %default are the only officially supported variables,
-    //We initialize the context with these, and let the rules to extend the list
-    validationContext.addVariable("%default");
+    MappingRuleValidationContext validationContext = buildValidationContext(
+        immutableVariables, queueManager);
 
     //Getting and validating mapping rules
     mappingRules = conf.getMappingRules();

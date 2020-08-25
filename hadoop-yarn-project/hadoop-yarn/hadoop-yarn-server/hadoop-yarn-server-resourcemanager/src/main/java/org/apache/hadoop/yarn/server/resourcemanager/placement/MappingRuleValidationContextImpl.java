@@ -26,13 +26,30 @@ import java.util.Set;
 
 public class MappingRuleValidationContextImpl
     implements MappingRuleValidationContext {
+  /**
+   * We store all known variables in this set
+   */
   private Set<String> knownVariables = Sets.newHashSet();
+  /**
+   * This set is to determine which variables are immutable
+   */
+  private Set<String> immutableVariables = Sets.newHashSet();
+  /**
+   * For queue path validations we need an instance of the queue manager
+   * to look up queues and their parents.
+   */
   private CapacitySchedulerQueueManager queueManager;
 
   MappingRuleValidationContextImpl(CapacitySchedulerQueueManager qm) {
     queueManager = qm;
   }
 
+  /**
+   * This method will determine if a static queue path is valid
+   * @param path The static path of the queue
+   * @return true of the path is valid
+   * @throws YarnException if the path is invalid
+   */
   private boolean validateStaticQueuePath(MappingQueuePath path)
       throws YarnException {
       //Try getting queue by its full path name, if it exists it is a static
@@ -102,6 +119,13 @@ public class MappingRuleValidationContextImpl
     return true;
   }
 
+  /**
+   * This method will determine if a dynamic queue path (a path which contains
+   * variables) is valid
+   * @param path The dynamic path of the queue
+   * @return true of the path is valid
+   * @throws YarnException if the path is invalid
+   */
   private boolean validateDynamicQueuePath(MappingQueuePath path)
       throws YarnException{
     //if the queue is dynamic and we don't have a parent path, we cannot do
@@ -145,6 +169,15 @@ public class MappingRuleValidationContextImpl
     return true;
   }
 
+
+  /**
+   * This method should determine if the provided queue path can result in
+   * a possible placement. It should fail if the provided path cannot be placed
+   * into any of the known queues regardless of the variable context.
+   * @param queuePath The path to check
+   * @return true if the validation was successful
+   * @throws YarnException if the provided queue path is invalid
+   */
   public boolean validateQueuePath(String queuePath) throws YarnException {
     MappingQueuePath path = new MappingQueuePath(queuePath);
 
@@ -155,6 +188,12 @@ public class MappingRuleValidationContextImpl
     }
   }
 
+  /**
+   * Method to determine if the provided queue path contains any dynamic parts
+   * A part is dynamic if a known variable is referenced in it.
+   * @param queuePath The path to check
+   * @return true if no dynamic parts were found
+   */
   public boolean isPathStatic(String queuePath) {
     String[] parts = queuePath.split("\\.");
     for (int i = 0; i < parts.length; i++) {
@@ -166,10 +205,42 @@ public class MappingRuleValidationContextImpl
     return true;
   }
 
-  public void addVariable(String variable) {
+  /**
+   * This method will add a known variable to the validation context, known
+   * variables can be used to determine if a path is static or dynamic
+   * @param variable Name of the variable
+   * @throws YarnException If the variable to be added has already added as an
+   * immutable one, an exception is thrown
+   */
+  public void addVariable(String variable) throws YarnException {
+    if (immutableVariables.contains(variable)) {
+      throw new YarnException("Variable '" + variable + "' is immutable " +
+          "cannot add to the modified variable list.");
+    }
     knownVariables.add(variable);
   }
 
+  /**
+   * This method will add a known immutable variable to the validation context,
+   * known variables can be used to determine if a path is static or dynamic
+   * @param variable Name of the immutable variable
+   * @throws YarnException If the variable to be added has already added as a
+   * regular, mutable variable an exception is thrown
+   */
+  public void addImmutableVariable(String variable) throws YarnException {
+    if (knownVariables.contains(variable) &&
+        !immutableVariables.contains(variable)) {
+      throw new YarnException("Variable '" + variable + "' already " +
+          "added as a mutable variable cannot set it to immutable.");
+    }
+    knownVariables.add(variable);
+    immutableVariables.add(variable);
+  }
+
+  /**
+   * This method will return all the known variables
+   * @return Set of the known variables
+   */
   public Set<String> getVariables() {
     return ImmutableSet.copyOf(knownVariables);
   }

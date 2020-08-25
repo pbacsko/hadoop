@@ -61,8 +61,9 @@ public interface MappingRuleAction {
    * This method is responsible for config validation, the context contains all
    * information required for validation, method should throw an exception on
    * detectable setup errors.
-   * @param ctx
-   * @throws YarnException
+   * @param ctx Validation context with all the necessary objects and helper
+   *            methods required during validation
+   * @throws YarnException is thrown on validation error
    */
   void validate(MappingRuleValidationContext ctx) throws YarnException;
 }

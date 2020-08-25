@@ -43,8 +43,10 @@ public class TestMappingRuleActions extends TestCase {
   public void testRejectAction() {
     VariableContext variables = new VariableContext();
     MappingRuleAction reject = new MappingRuleActions.RejectAction();
+    MappingRuleAction rejectHelper = MappingRuleActions.createRejectAction();
 
     assertRejectResult(reject.execute(variables));
+    assertRejectResult(rejectHelper.execute(variables));
   }
 
   @Test
@@ -125,13 +127,13 @@ public class TestMappingRuleActions extends TestCase {
         new MappingRuleActions.PlaceToQueueAction("root.%sub.%immutable");
 
     MappingRuleAction placeToDynamicDoubleSub =
-        new MappingRuleActions.PlaceToQueueAction("root.%sub%sub.%immutable");
+        MappingRuleActions.createPlaceToQueueAction("root.%sub%sub.%immutable");
 
     MappingRuleAction placeToNull =
-        new MappingRuleActions.PlaceToQueueAction(null);
+        MappingRuleActions.createPlaceToQueueAction(null);
 
     MappingRuleAction placeToEmpty =
-        new MappingRuleActions.PlaceToQueueAction("");
+        MappingRuleActions.createPlaceToQueueAction("");
 
     MappingRuleAction placeToNulRef =
         new MappingRuleActions.PlaceToQueueAction("%null");

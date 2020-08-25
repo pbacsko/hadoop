@@ -47,15 +47,19 @@ public class TestMappingRuleValidationContextImpl {
     assertEquals(0, ctx.getVariables().size());
     //hence all quese were considered static
     assertTrue(ctx.isPathStatic("root.%user"));
-    //but then suddenly there was a variable
-    ctx.addVariable("%user");
-    ctx.addVariable("%user");
-    assertEquals(1, ctx.getVariables().size());
-    //and suddenly previously static queues became dynamic
-    assertFalse(ctx.isPathStatic("root.%user"));
-    //as time passed, more and more variables joined the void
-    ctx.addVariable("%primary_group");
-    ctx.addVariable("%default");
+    try {
+      //but then suddenly there was a variable
+      ctx.addVariable("%user");
+      ctx.addVariable("%user");
+      assertEquals(1, ctx.getVariables().size());
+      //and suddenly previously static queues became dynamic
+      assertFalse(ctx.isPathStatic("root.%user"));
+      //as time passed, more and more variables joined the void
+      ctx.addVariable("%primary_group");
+      ctx.addVariable("%default");
+    } catch (YarnException e) {
+      fail("We don't expect the add variable to fail: " + e.getMessage());
+    }
     assertEquals(3, ctx.getVariables().size());
     //making more and more dynamic queues possible
     assertFalse(ctx.isPathStatic("root.%primary_group.something"));
@@ -103,8 +107,12 @@ public class TestMappingRuleValidationContextImpl {
 
     MappingRuleValidationContextImpl ctx =
         new MappingRuleValidationContextImpl(qm);
-    ctx.addVariable("%dynamic");
-    ctx.addVariable("%user");
+    try {
+      ctx.addVariable("%dynamic");
+      ctx.addVariable("%user");
+    } catch (YarnException e) {
+      fail("We don't expect the add variable to fail: " + e.getMessage());
+    }
 
     assertValidPath(ctx, "%dynamic");
     assertValidPath(ctx, "root.%dynamic");
@@ -161,5 +169,48 @@ public class TestMappingRuleValidationContextImpl {
     assertInvalidPath(ctx, "queue.invalidPath");
     assertValidPath(ctx, "path");
     assertValidPath(ctx, "root.deep.queue.path");
+  }
+
+  @Test
+  public void testImmutableVariablesInContext() {
+    CapacitySchedulerQueueManager qm =
+        mock(CapacitySchedulerQueueManager.class);
+
+    MappingRuleValidationContextImpl ctx =
+        new MappingRuleValidationContextImpl(qm);
+
+    try {
+      ctx.addVariable("mutable");
+      ctx.addVariable("mutable");
+    } catch (YarnException e) {
+      fail("We should be able to add a mutable variable multiple times: "
+          + e.getMessage());
+    }
+
+    try {
+      ctx.addImmutableVariable("mutable");
+      fail("We should receive an exception if an already added mutable variable" +
+          "is being marked as immutable");
+    } catch (YarnException e) {
+      //just to show this is the happy path
+      assertTrue(true);
+    }
+
+    try {
+      ctx.addImmutableVariable("immutable");
+      ctx.addImmutableVariable("immutable");
+    } catch (YarnException e) {
+      fail("We should be able to add a immutable variable multiple times: "
+          + e.getMessage());
+    }
+
+    try {
+      ctx.addVariable("immutable");
+      fail("We should receive an exception if we try to add a variable as " +
+          "mutable when it was previously added as immutable");
+    } catch (YarnException e) {
+      //just to show this is the happy path
+      assertTrue(true);
+    }
   }
 }

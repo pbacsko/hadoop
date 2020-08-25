@@ -224,7 +224,6 @@ public class TestMappingRuleMatchers extends TestCase {
     assertFalse(developerBobMatcher.match(testerDave));
     assertFalse(developerBobMatcher.match(accountantDave));
 
-    System.out.println(testerDaveMatcher);
     assertFalse(testerDaveMatcher.match(developerBob));
     assertFalse(testerDaveMatcher.match(testerBob));
     assertTrue(testerDaveMatcher.match(testerDave));
